@@ -1,0 +1,46 @@
+# flappy-birdz
+
+Small Flappy Bird-style prototype built with Bevy.
+
+The project is being used as a learning and architecture sandbox for:
+
+- scalable ECS-style gameplay code in Bevy
+- a future health/difficulty single-player mode
+- AI-controlled competing birds
+- eventual multiplayer support
+
+## Run
+
+```bash
+cargo run
+```
+
+## Controls
+
+Use the left or right mouse button to flap.
+
+## Current Technical Direction
+
+- simulation state is kept separate from presentation state
+- input is captured as bird intent and consumed in simulation
+- world scrolling is modeled explicitly and reused by the background parallax system
+- the roadmap is single-player foundations first, AI second, multiplayer third
+
+## Structure
+
+- `src/main.rs`: minimal application bootstrap
+- `src/lib.rs`: library entrypoint exporting `FlappyBirdPlugin`
+- `src/game/`: gameplay modules for simulation, UI, background, pipes, run flow, and shared config
+- `assets/`: textures and shader source
+- `ROADMAP.md`: future milestones and feature sequencing
+- `ARCHITECTURE.md`: current architecture baseline and guiding technical model
+- `AGENTS.md`: repo-local instructions for coding agents
+
+## Quality Checks
+
+```bash
+cargo fmt --check
+cargo check
+cargo clippy --all-targets --all-features
+cargo test
+```
