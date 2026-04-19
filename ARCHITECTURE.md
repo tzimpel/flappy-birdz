@@ -61,15 +61,15 @@ Current direction:
 
 - run lifecycle is expressed through explicit state and run-end messages rather than direct collision resets
 - scoring is expressed through `ScorePoint`
-- damage, death, and other transient hazard facts are expected to keep moving toward explicit gameplay messages
-- obstacle resolution should move toward explicit obstacle state rather than hidden helper colliders determining score semantics
+- damage and death are expressed through explicit gameplay messages such as `BirdDamaged` and `BirdDied`
+- obstacle resolution is expressed on pipe-couple roots through explicit state such as `Unresolved`, `Hit`, or `Scored`
 
 This is still a simple model, but it is more extensible than embedding all control flow in direct system side effects.
-The current restart behavior is an intentional placeholder for the current game mechanics, not an accidental partial implementation of the final run lifecycle.
+The current restart behavior is still intentionally coarse, but it now lives inside explicit `Ready`, `Playing`, and short-lived `GameOver` states instead of direct reactive resets.
 
 ### 5. State-Ready Game Flow
 
-The game already has a minimal `GameState` scaffold even though only `Playing` is currently active.
+The game now uses an active `GameState` flow built around `Ready`, `Playing`, and `GameOver`.
 
 This keeps the codebase ready for:
 
@@ -88,12 +88,13 @@ The `src/game/` directory is organized by concern.
 - `bird.rs`
   - player/bird spawning
   - input capture
-  - movement, bounds, collision, rotation
+  - movement, boundary hazard handling, collision, damage, healing, rotation
 - `pipes.rs`
   - timed obstacle spawning
-  - obstacle positioning, movement, and obstacle-resolution state
+  - obstacle generation policy/state
+  - obstacle positioning, movement, safe-passage scoring, and obstacle-resolution state
 - `run.rs`
-  - current coarse restart behavior
+  - run lifecycle, restart/reset flow, difficulty progression, and game-over delay
 - `score.rs`
   - score resource and score message handling
 - `model.rs`
@@ -116,11 +117,12 @@ The current flow is roughly:
 1. consume bird intent
 2. apply gravity
 3. integrate velocity into position
-4. move and spawn pipes
-5. resolve collisions and other hazard facts
-6. apply damage and death side effects
-7. resolve safe obstacle passage and scoring
-8. sync transforms from simulation state
+4. clamp the bird inside world bounds and emit boundary impact damage
+5. advance run difficulty
+6. move, spawn, and despawn pipes
+7. sync transforms from simulation state
+8. resolve collisions and other hazard facts
+9. apply damage, death, scoring, and passive healing side effects
 
 This is the main simulation path and should remain the place where future gameplay rules are applied.
 
@@ -133,17 +135,17 @@ Current responsibilities include:
 - capturing player input into intent
 - updating parallax offsets and syncing them into materials
 - updating bird presentation state such as rotation
-- syncing transforms for rendering
-- reflecting simulation values such as score and health into gameplay UI
+- syncing transforms for rendering outside fixed-step resets
+- reflecting simulation values such as score, health, and game-over state into gameplay UI
+- advancing delayed non-simulation lifecycle transitions such as automatic restart from `GameOver`
 
 ## Current Temporary Constraints
 
 Some parts of the implementation are intentionally still transitional:
 
-- out-of-bounds behavior is still coarse and will evolve toward explicit boundary clamping plus contact damage
-- obstacle generation is still simple and mostly pipe-specific
 - only one bird exists in the simulation
-- run lifecycle is still intentionally simple even though health, damage, death, and safe obstacle passage are now explicit
+- obstacle generation is still intentionally pipe-centric and pattern-driven rather than generalized across arbitrary obstacle families
+- run lifecycle is still intentionally simple even though health, damage, death, safe obstacle passage, and delayed game-over restart are now explicit
 
 These are expected to evolve, but the code should continue to move toward explicit, reusable simulation concepts rather than ad hoc feature logic.
 They should not be replaced preemptively with broader abstractions before the current milestone actually needs them.
@@ -153,14 +155,14 @@ They should not be replaced preemptively with broader abstractions before the cu
 The next major architectural evolution should build on the current baseline rather than replacing it:
 
 - restart semantics should eventually split into collision, damage, elimination, and run-lifecycle concepts such as start, respawn, and reset
-- vertical world bounds should become simulation constraints that keep the bird visible, while boundary impact and contact damage are modeled separately through gameplay facts
-- boundary impact damage should scale with the outward vertical collision speed so hard hits and light brushes are distinguished by explicit damage rules rather than by special movement behavior
+- vertical world bounds already act as simulation constraints that keep the bird visible, while boundary impact and contact damage remain modeled separately through gameplay facts
+- boundary impact damage already scales with outward vertical collision speed so hard hits and light brushes are distinguished by explicit damage rules rather than by special movement behavior
 - each pipe couple should continue owning one explicit resolution state so collision damage and score eligibility stay derived from obstacle state instead of repeated overlap checks
 - obstacle generation should evolve toward a clearer separation between generation policy/state and entity spawning
 - bird simulation should remain shared across human, AI, and network-controlled birds
 - world scroll should remain the common source for obstacle movement and background motion
 
-Until those steps are active, the current simple obstacle generation logic and still-coarse boundary behavior remain valid placeholders.
+Until those later steps are active, the current single-bird flow and pipe-specific obstacle generation remain valid placeholders.
 
 ## Testing Strategy
 

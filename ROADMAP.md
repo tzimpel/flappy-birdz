@@ -24,6 +24,11 @@ The sequence is intentional. Each milestone introduces gameplay features only af
 
 This milestone turns the current prototype into a stronger single-player game while establishing the architectural base for everything that comes after.
 
+Status:
+
+- Implemented in the current codebase.
+- The step breakdown below is kept as the historical implementation sequence and as a checklist for regressions.
+
 ### Goals
 
 - Replace instant death on collision with health-based survival.
@@ -72,8 +77,8 @@ This milestone turns the current prototype into a stronger single-player game wh
 ### Placeholder Notes
 
 - The current coarse restart behavior is intentional placeholder behavior, not an accidental unfinished lifecycle model.
-- It is expected to stay coarse until Milestone 1 reaches the point where restart semantics need to split into concepts such as `RunStart`, `Respawn`, and `RunReset`.
-- The current obstacle generation logic is also allowed to remain simple until obstacle generation policy is explicitly tackled.
+- Milestone 1 now includes explicit `Ready`, `Playing`, and short-lived `GameOver` phases with automatic restart after a configurable delay.
+- The current obstacle generation logic is intentionally deterministic and pattern-driven rather than random-first, but it is still expected to evolve in later milestones.
 - Deterministic future direction matters, but Milestone 1 does not require prematurely choosing the final obstacle-generation algorithm.
 
 ### Recommended Data Model
@@ -93,14 +98,15 @@ This milestone turns the current prototype into a stronger single-player game wh
 - Resources:
   - `GameConfig`
   - `RunDirector`
-  - `ObstacleRng` or a deterministic spawn seed/state
+  - `DifficultyDirector`
+  - `ObstacleDirector`
   - `Scoreboard` if scoring becomes more global
 - Messages:
-  - `DamageTaken`
-  - `BirdHealed`
+  - `BirdDamaged`
   - `BirdDied`
-  - `PipePassedSafely`
-  - `RunEnded`
+  - `RunStarted`
+  - `RunEndRequested`
+  - `ScorePoint`
 
 ### Why This Comes First
 
@@ -132,6 +138,8 @@ The milestone benefits from being split into reviewable changesets that each int
    Make pipe gap size and spacing/spawn cadence evolve within configured bounds once progression data exists.
 11. Stabilize scoring and UI against the updated gameplay model.
    Ensure score, health presentation, and game-over feedback reflect damage, healing, survival, and progression correctly.
+
+All eleven steps above are now implemented in the current codebase.
 
 ### Suggested Implementation Order
 
