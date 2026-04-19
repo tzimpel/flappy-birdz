@@ -5,6 +5,10 @@ on:
     tags:
       - '*'
 
+permissions:
+  contents: write
+  packages: read
+
 env:
   # update with the name of the main binary
   binary: flappy-birdz
