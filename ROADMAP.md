@@ -39,7 +39,7 @@ This milestone turns the current prototype into a stronger single-player game wh
 - Bird health with a defined maximum.
 - Pipe collision causes one damage event per pipe couple instead of immediate game over.
 - A pipe couple awards score only if the bird passes it safely without colliding.
-- Top and bottom world bounds clamp the bird inside the playable space and apply mild continuous damage while contact persists.
+- Top and bottom world bounds clamp the bird inside the playable space, apply impact damage based on outward vertical impact speed when hit, and apply mild continuous damage while contact persists.
 - Health regeneration over time up to max health.
 - Health is shown in the gameplay HUD alongside score.
 - Run progression that increases challenge over time.
@@ -66,6 +66,8 @@ This milestone turns the current prototype into a stronger single-player game wh
 - Move pipe generation rules into one explicit system/resource instead of scattering values through systems.
 - Ensure that scoring, damage, healing, and death are derived by systems from state and transient messages.
 - Keep boundary clamping separate from boundary damage so movement constraints and hazard rules remain explicit.
+- Keep boundary impact damage and boundary contact damage explicit so hazard severity is tuned through damage rules rather than sticky movement behavior.
+- Scale boundary impact damage with outward vertical collision speed so light brushes are less punishing than hard crashes.
 
 ### Placeholder Notes
 
@@ -120,8 +122,8 @@ The milestone benefits from being split into reviewable changesets that each int
    This is the point where elimination semantics become meaningful and the run ends because the bird died, not because a collision happened.
 6. Add safe pipe passage and single-hit obstacle resolution.
    Each pipe couple should carry one explicit resolution state, apply at most one collision-damage event, and only award score once the bird has passed it safely without colliding. This replaces score-gate-triggered scoring with obstacle-resolution-driven scoring.
-7. Replace out-of-bounds restart with boundary clamping and contact damage.
-   The bird should remain visible inside the world bounds, take mild continuous damage while pressed against the top or bottom edge, and still be able to take additional pipe damage in the same step.
+7. Replace out-of-bounds restart with boundary clamping, impact damage, and contact damage.
+   The bird should remain visible inside the world bounds, take impact damage based on outward vertical collision speed when it hits the top or bottom edge, take mild continuous damage while pressed against that edge, and still be able to take additional pipe damage in the same step.
 8. Add passive healing and its gating rules.
    Introduce regeneration over time up to max health, using explicit state and timing rather than presentation-driven behavior.
 9. Add explicit run progression and difficulty scaling.
@@ -139,7 +141,7 @@ The milestone benefits from being split into reviewable changesets that each int
 4. Gameplay health output
 5. Death and run-end handling
 6. Safe pipe passage and single-hit obstacle resolution
-7. Boundary clamping and contact damage
+7. Boundary clamping, impact damage, and contact damage
 8. Passive healing
 9. Run progression and difficulty scaling
 10. Dynamic obstacle generation ranges
@@ -150,7 +152,7 @@ The milestone benefits from being split into reviewable changesets that each int
 - The game has one human-controlled bird.
 - The bird survives collisions until health reaches zero.
 - Each pipe couple can damage the bird at most once and only awards score when passed safely.
-- The bird remains inside the vertical world bounds and takes mild contact damage instead of failing instantly when pressing against those bounds.
+- The bird remains inside the vertical world bounds and takes explicit speed-scaled impact damage plus contact damage instead of failing instantly when pressing against those bounds.
 - Difficulty ramps over time through explicit systems/resources.
 - Pipe generation is controlled by data that can later be reused by AI and multiplayer.
 - The simulation no longer depends on direct UI/input coupling.

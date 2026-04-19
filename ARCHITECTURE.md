@@ -59,7 +59,7 @@ Transient gameplay facts should be modeled explicitly.
 
 Current direction:
 
-- coarse restart behavior is expressed through `RunRestartRequested`
+- run lifecycle is expressed through explicit state and run-end messages rather than direct collision resets
 - scoring is expressed through `ScorePoint`
 - damage, death, and other transient hazard facts are expected to keep moving toward explicit gameplay messages
 - obstacle resolution should move toward explicit obstacle state rather than hidden helper colliders determining score semantics
@@ -117,9 +117,10 @@ The current flow is roughly:
 2. apply gravity
 3. integrate velocity into position
 4. move and spawn pipes
-5. sync transforms from simulation state
-6. check bounds and collisions
-7. apply score and restart side effects
+5. resolve collisions and other hazard facts
+6. apply damage and death side effects
+7. resolve safe obstacle passage and scoring
+8. sync transforms from simulation state
 
 This is the main simulation path and should remain the place where future gameplay rules are applied.
 
@@ -139,12 +140,10 @@ Current responsibilities include:
 
 Some parts of the implementation are intentionally still transitional:
 
-- collisions still trigger a coarse run restart rather than damage/death semantics
 - out-of-bounds behavior is still coarse and will evolve toward explicit boundary clamping plus contact damage
-- pipe scoring still relies on temporary pipe-specific helpers and will evolve toward obstacle-resolution-driven safe passage
 - obstacle generation is still simple and mostly pipe-specific
 - only one bird exists in the simulation
-- the current `GameState` is minimal
+- run lifecycle is still intentionally simple even though health, damage, death, and safe obstacle passage are now explicit
 
 These are expected to evolve, but the code should continue to move toward explicit, reusable simulation concepts rather than ad hoc feature logic.
 They should not be replaced preemptively with broader abstractions before the current milestone actually needs them.
@@ -154,14 +153,14 @@ They should not be replaced preemptively with broader abstractions before the cu
 The next major architectural evolution should build on the current baseline rather than replacing it:
 
 - restart semantics should eventually split into collision, damage, elimination, and run-lifecycle concepts such as start, respawn, and reset
-- vertical world bounds should become simulation constraints that keep the bird visible, while any boundary hazard damage is modeled separately through gameplay facts
-- each pipe couple should own one explicit resolution state so collision damage and score eligibility are derived from obstacle state instead of repeated overlap checks
-- pipe scoring should resolve from safe passage beyond the obstacle on the x-axis, allowing the hidden score gate helper to be removed
+- vertical world bounds should become simulation constraints that keep the bird visible, while boundary impact and contact damage are modeled separately through gameplay facts
+- boundary impact damage should scale with the outward vertical collision speed so hard hits and light brushes are distinguished by explicit damage rules rather than by special movement behavior
+- each pipe couple should continue owning one explicit resolution state so collision damage and score eligibility stay derived from obstacle state instead of repeated overlap checks
 - obstacle generation should evolve toward a clearer separation between generation policy/state and entity spawning
 - bird simulation should remain shared across human, AI, and network-controlled birds
 - world scroll should remain the common source for obstacle movement and background motion
 
-Until those steps are active, the current coarse restart behavior and simple obstacle generation logic remain valid placeholders.
+Until those steps are active, the current simple obstacle generation logic and still-coarse boundary behavior remain valid placeholders.
 
 ## Testing Strategy
 

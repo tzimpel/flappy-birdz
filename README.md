@@ -5,7 +5,7 @@ Small Flappy Bird-style prototype built with Bevy.
 The project is being used as a learning and architecture sandbox for:
 
 - scalable ECS-style gameplay code in Bevy
-- a future health/difficulty single-player mode with HUD health output, safe pipe-passage scoring, and boundary hazard damage
+- a future health/difficulty single-player mode with HUD health output, safe pipe-passage scoring, and boundary impact/contact damage
 - AI-controlled competing birds
 - eventual multiplayer support
 
