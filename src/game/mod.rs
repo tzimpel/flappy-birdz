@@ -19,7 +19,7 @@ use self::{
     config::GameConfig,
     messages::{BirdDamaged, BirdDied, RunEndRequested, RunStarted, ScorePoint},
     pipes::ObstacleDirector,
-    run::{DifficultyDirector, RunDirector},
+    run::{DifficultyDirector, GameOverDelayTimer, RunDirector},
     score::Score,
     state::GameState,
 };
@@ -33,6 +33,7 @@ impl Plugin for FlappyBirdPlugin {
             .init_resource::<WorldScroll>()
             .init_resource::<ObstacleDirector>()
             .init_resource::<DifficultyDirector>()
+            .init_resource::<GameOverDelayTimer>()
             .init_resource::<RunDirector>()
             .init_resource::<Score>()
             .init_state::<GameState>()
@@ -57,6 +58,9 @@ impl Plugin for FlappyBirdPlugin {
                 (
                     run::reset_run_entities,
                     model::sync_transforms_after_reset,
+                    ui::score_update,
+                    ui::health_update,
+                    ui::hide_game_over_feedback,
                     run::start_first_run,
                 )
                     .chain(),
@@ -100,8 +104,10 @@ impl Plugin for FlappyBirdPlugin {
             .add_systems(
                 Update,
                 (
-                    ui::score_update.run_if(resource_changed::<Score>),
+                    ui::score_update,
                     ui::health_update,
+                    ui::sync_game_over_feedback_to_state,
+                    run::advance_game_over_delay.run_if(in_state(GameState::GameOver)),
                     model::sync_transforms.run_if(in_state(GameState::Playing)),
                     run::begin_playing_on_run_started,
                     run::finish_run_on_request.run_if(in_state(GameState::Playing)),
@@ -109,7 +115,7 @@ impl Plugin for FlappyBirdPlugin {
             )
             .add_systems(
                 OnEnter(GameState::GameOver),
-                run::queue_next_run_from_game_over,
+                (ui::show_game_over_feedback, run::begin_game_over_delay).chain(),
             );
     }
 }

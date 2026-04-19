@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use std::time::Duration;
 
 use super::{
     assets::GameAssets,
@@ -22,6 +23,11 @@ pub struct RunDirector {
 pub struct DifficultyDirector {
     pub elapsed_secs: f32,
     pub normalized: f32,
+}
+
+#[derive(Resource, Default)]
+pub struct GameOverDelayTimer {
+    pub timer: Timer,
 }
 
 pub fn start_first_run(mut run_started: MessageWriter<RunStarted>) {
@@ -116,8 +122,24 @@ pub fn request_run_end_on_bird_death(
     }
 }
 
-pub fn queue_next_run_from_game_over(mut next_state: ResMut<NextState<GameState>>) {
-    next_state.set(GameState::Ready);
+pub fn begin_game_over_delay(
+    mut game_over_delay: ResMut<GameOverDelayTimer>,
+    config: Res<GameConfig>,
+) {
+    game_over_delay.timer = Timer::new(
+        Duration::from_secs_f32(config.game_over_delay_secs),
+        TimerMode::Once,
+    );
+}
+
+pub fn advance_game_over_delay(
+    mut game_over_delay: ResMut<GameOverDelayTimer>,
+    mut next_state: ResMut<NextState<GameState>>,
+    time: Res<Time>,
+) {
+    if game_over_delay.timer.tick(time.delta()).just_finished() {
+        next_state.set(GameState::Ready);
+    }
 }
 
 pub fn restart_position(canvas_width: f32) -> Vec2 {
