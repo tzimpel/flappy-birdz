@@ -3,7 +3,10 @@ use bevy::prelude::*;
 use super::{
     assets::GameAssets,
     config::GameConfig,
-    model::{Collider, Pipe, PipeBottom, PipeTop, PointsGate, Position},
+    messages::ScorePoint,
+    model::{
+        Collider, Pipe, PipeBottom, PipeOwner, PipeResolution, PipeTop, PlayerControlled, Position,
+    },
 };
 
 #[derive(Resource)]
@@ -82,48 +85,42 @@ fn spawn_pipe(
         ..default()
     });
     let pipe_offset = config.pipe_size.y / 2.0 + config.pipe_gap_size / 2.0;
+    let root = commands
+        .spawn((
+            Pipe,
+            PipeResolution::Unresolved,
+            Position(spawn_position),
+            Transform::from_xyz(spawn_position.x, spawn_position.y, 1.0),
+            Visibility::Visible,
+        ))
+        .id();
 
-    commands.spawn((
-        Pipe,
-        Position(spawn_position),
-        Transform::from_xyz(spawn_position.x, spawn_position.y, 1.0),
-        Visibility::Visible,
-        children![
-            (
-                Collider::Rect(config.pipe_size),
-                Sprite {
-                    image: assets.pipe_image.clone(),
-                    custom_size: Some(config.pipe_size),
-                    image_mode: image_mode.clone(),
-                    ..default()
-                },
-                Transform::from_xyz(0.0, pipe_offset + gap_y_position, 1.0,),
-                PipeTop
-            ),
-            (
-                Collider::Rect(Vec2::new(config.score_gate_width, config.pipe_gap_size,)),
-                Visibility::Hidden,
-                Sprite {
-                    color: Color::WHITE,
-                    custom_size: Some(Vec2::new(config.score_gate_width, config.pipe_gap_size,)),
-                    ..default()
-                },
-                Transform::from_xyz(0.0, gap_y_position, 1.0,),
-                PointsGate,
-            ),
-            (
-                Collider::Rect(config.pipe_size),
-                Sprite {
-                    image: assets.pipe_image.clone(),
-                    custom_size: Some(config.pipe_size),
-                    image_mode,
-                    ..default()
-                },
-                Transform::from_xyz(0.0, -pipe_offset + gap_y_position, 1.0,),
-                PipeBottom,
-            )
-        ],
-    ));
+    commands.entity(root).with_children(|parent| {
+        parent.spawn((
+            PipeOwner(root),
+            Collider::Rect(config.pipe_size),
+            Sprite {
+                image: assets.pipe_image.clone(),
+                custom_size: Some(config.pipe_size),
+                image_mode: image_mode.clone(),
+                ..default()
+            },
+            Transform::from_xyz(0.0, pipe_offset + gap_y_position, 1.0),
+            PipeTop,
+        ));
+        parent.spawn((
+            PipeOwner(root),
+            Collider::Rect(config.pipe_size),
+            Sprite {
+                image: assets.pipe_image.clone(),
+                custom_size: Some(config.pipe_size),
+                image_mode,
+                ..default()
+            },
+            Transform::from_xyz(0.0, -pipe_offset + gap_y_position, 1.0),
+            PipeBottom,
+        ));
+    });
 }
 
 pub fn initial_pipe_spawn_position(canvas_width: f32, pipe_width: f32) -> Vec2 {
@@ -138,12 +135,51 @@ pub fn compute_gap_y_position(elapsed_secs: f32, canvas_height: f32) -> f32 {
     (elapsed_secs * 4.2309875).sin() * canvas_height / 4.0
 }
 
+pub fn score_safe_pipe_passes(
+    player: Single<(&Position, &Collider), With<PlayerControlled>>,
+    mut pipes: Query<(&Position, &mut PipeResolution), With<Pipe>>,
+    mut score_points: MessageWriter<ScorePoint>,
+    config: Res<GameConfig>,
+) {
+    let bird_left_x = bird_left_edge(player.0.0.x, player.1);
+
+    for (position, mut resolution) in &mut pipes {
+        if *resolution != PipeResolution::Unresolved {
+            continue;
+        }
+
+        let pipe_right_x = pipe_right_edge(position.0.x, config.pipe_size.x);
+        if has_bird_safely_passed_pipe(bird_left_x, pipe_right_x) {
+            score_points.write(ScorePoint);
+            *resolution = PipeResolution::Scored;
+        }
+    }
+}
+
+pub fn pipe_right_edge(pipe_x: f32, pipe_width: f32) -> f32 {
+    pipe_x + pipe_width / 2.0
+}
+
+pub fn bird_left_edge(bird_x: f32, collider: &Collider) -> f32 {
+    let half_width = match collider {
+        Collider::Circle(radius) => *radius,
+        Collider::Rect(size) => size.x / 2.0,
+    };
+
+    bird_x - half_width
+}
+
+pub fn has_bird_safely_passed_pipe(bird_left_x: f32, pipe_right_x: f32) -> bool {
+    bird_left_x > pipe_right_x
+}
+
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
 
     use super::{
-        compute_gap_y_position, initial_pipe_spawn_position, repeating_pipe_spawn_position,
+        bird_left_edge, compute_gap_y_position, has_bird_safely_passed_pipe,
+        initial_pipe_spawn_position, pipe_right_edge, repeating_pipe_spawn_position,
     };
 
     #[test]
@@ -162,5 +198,33 @@ mod tests {
     #[test]
     fn gap_position_starts_centered_at_time_zero() {
         assert_eq!(compute_gap_y_position(0.0, 270.0), 0.0);
+    }
+
+    #[test]
+    fn pipe_right_edge_uses_half_width_offset() {
+        assert_eq!(pipe_right_edge(224.0, 32.0), 240.0);
+    }
+
+    #[test]
+    fn bird_left_edge_uses_circle_radius() {
+        assert_eq!(bird_left_edge(10.0, &super::Collider::Circle(5.0)), 5.0);
+    }
+
+    #[test]
+    fn bird_left_edge_uses_half_rect_width() {
+        assert_eq!(
+            bird_left_edge(10.0, &super::Collider::Rect(Vec2::new(8.0, 12.0))),
+            6.0
+        );
+    }
+
+    #[test]
+    fn bird_must_be_strictly_past_pipe_to_score() {
+        assert!(!has_bird_safely_passed_pipe(240.0, 240.0));
+    }
+
+    #[test]
+    fn bird_scores_once_fully_past_pipe() {
+        assert!(has_bird_safely_passed_pipe(240.1, 240.0));
     }
 }

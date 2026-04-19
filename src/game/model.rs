@@ -40,14 +40,21 @@ pub enum Collider {
 #[require(Position)]
 pub struct Pipe;
 
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PipeResolution {
+    Unresolved,
+    Hit,
+    Scored,
+}
+
+#[derive(Component, Clone, Copy)]
+pub struct PipeOwner(pub Entity);
+
 #[derive(Component)]
 pub struct PipeTop;
 
 #[derive(Component)]
 pub struct PipeBottom;
-
-#[derive(Component)]
-pub struct PointsGate;
 
 pub fn sync_transforms(mut query: Query<(&Position, &mut Transform)>) {
     for (position, mut transform) in &mut query {

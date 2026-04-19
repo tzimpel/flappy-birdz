@@ -75,6 +75,7 @@ impl Plugin for FlappyBirdPlugin {
                     bird::apply_bird_damage,
                     bird::detect_bird_death,
                     run::request_run_end_on_bird_death,
+                    pipes::score_safe_pipe_passes,
                     score::increment_score_on_point,
                 )
                     .chain()

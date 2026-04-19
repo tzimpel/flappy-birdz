@@ -7,10 +7,10 @@ use bevy::{
 use super::{
     assets::GameAssets,
     config::GameConfig,
-    messages::{BirdDamaged, BirdDied, RunEndRequested, ScorePoint},
+    messages::{BirdDamaged, BirdDied, RunEndRequested},
     model::{
-        Alive, Bird, BirdIntent, Collider, Gravity, Health, MaxHealth, PipeBottom, PipeTop,
-        PlayerControlled, PointsGate, Position, Velocity,
+        Alive, Bird, BirdIntent, Collider, Gravity, Health, MaxHealth, PipeBottom, PipeOwner,
+        PipeResolution, PipeTop, PlayerControlled, Position, Velocity,
     },
 };
 
@@ -82,12 +82,10 @@ pub fn check_in_bounds(
 }
 
 pub fn check_collisions(
-    mut commands: Commands,
     mut bird_damaged: MessageWriter<BirdDamaged>,
-    mut score_points: MessageWriter<ScorePoint>,
     player: Single<(Entity, &Position, &Collider), With<PlayerControlled>>,
-    pipe_segments: Query<(&Collider, Entity), Or<(With<PipeTop>, With<PipeBottom>)>>,
-    pipe_gaps: Query<(&Collider, Entity), With<PointsGate>>,
+    pipe_segments: Query<(&Collider, &PipeOwner, Entity), Or<(With<PipeTop>, With<PipeBottom>)>>,
+    mut pipe_roots: Query<&mut PipeResolution>,
     mut gizmos: Gizmos,
     transform_helper: TransformHelper,
     config: Res<GameConfig>,
@@ -100,7 +98,7 @@ pub fn check_collisions(
 
     gizmos.circle_2d(player.1.0, player_radius, RED_400);
 
-    for (collider, entity) in &pipe_segments {
+    for (collider, owner, entity) in &pipe_segments {
         let pipe_transform = transform_helper.compute_global_transform(entity)?;
         let pipe_size = match collider {
             Collider::Rect(size) => *size,
@@ -111,26 +109,17 @@ pub fn check_collisions(
         gizmos.rect_2d(pipe_transform.translation().xy(), pipe_size, RED_400);
 
         if player_collider.intersects(&pipe_collider) {
-            bird_damaged.write(BirdDamaged {
-                entity: player.0,
-                amount: config.pipe_collision_damage,
-            });
-        }
-    }
+            let Ok(mut resolution) = pipe_roots.get_mut(owner.0) else {
+                continue;
+            };
 
-    for (collider, entity) in &pipe_gaps {
-        let gap_transform = transform_helper.compute_global_transform(entity)?;
-        let gap_size = match collider {
-            Collider::Rect(size) => *size,
-            Collider::Circle(radius) => Vec2::splat(*radius * 2.0),
-        };
-        let gap_collider = Aabb2d::new(gap_transform.translation().xy(), gap_size / 2.0);
-
-        gizmos.rect_2d(gap_transform.translation().xy(), gap_size, RED_400);
-
-        if player_collider.intersects(&gap_collider) {
-            score_points.write(ScorePoint);
-            commands.entity(entity).despawn();
+            if *resolution == PipeResolution::Unresolved {
+                bird_damaged.write(BirdDamaged {
+                    entity: player.0,
+                    amount: config.pipe_collision_damage,
+                });
+                *resolution = PipeResolution::Hit;
+            }
         }
     }
 
