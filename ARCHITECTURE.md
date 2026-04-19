@@ -61,6 +61,7 @@ Current direction:
 
 - coarse restart behavior is expressed through `RunRestartRequested`
 - scoring is expressed through `ScorePoint`
+- damage, death, and other transient hazard facts are expected to keep moving toward explicit gameplay messages
 
 This is still a simple model, but it is more extensible than embedding all control flow in direct system side effects.
 The current restart behavior is an intentional placeholder for the current game mechanics, not an accidental partial implementation of the final run lifecycle.
@@ -131,12 +132,14 @@ Current responsibilities include:
 - updating parallax offsets and syncing them into materials
 - updating bird presentation state such as rotation
 - syncing transforms for rendering
+- reflecting simulation values such as score and health into gameplay UI
 
 ## Current Temporary Constraints
 
 Some parts of the implementation are intentionally still transitional:
 
 - collisions still trigger a coarse run restart rather than damage/death semantics
+- out-of-bounds behavior is still coarse and will evolve toward explicit boundary clamping plus contact damage
 - obstacle generation is still simple and mostly pipe-specific
 - only one bird exists in the simulation
 - the current `GameState` is minimal
@@ -149,6 +152,7 @@ They should not be replaced preemptively with broader abstractions before the cu
 The next major architectural evolution should build on the current baseline rather than replacing it:
 
 - restart semantics should eventually split into collision, damage, elimination, and run-lifecycle concepts such as start, respawn, and reset
+- vertical world bounds should become simulation constraints that keep the bird visible, while any boundary hazard damage is modeled separately through gameplay facts
 - obstacle generation should evolve toward a clearer separation between generation policy/state and entity spawning
 - bird simulation should remain shared across human, AI, and network-controlled birds
 - world scroll should remain the common source for obstacle movement and background motion
