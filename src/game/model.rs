@@ -26,6 +26,12 @@ pub struct Health(pub f32);
 pub struct MaxHealth(pub f32);
 
 #[derive(Component, Default)]
+pub struct RegenRate(pub f32);
+
+#[derive(Component, Default)]
+pub struct TimeSinceDamage(pub f32);
+
+#[derive(Component, Default)]
 pub struct BirdIntent {
     pub flap: bool,
 }

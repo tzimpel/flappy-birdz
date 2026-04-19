@@ -10,7 +10,7 @@ use super::{
     messages::{BirdDamaged, BirdDied},
     model::{
         Alive, Bird, BirdIntent, Collider, Gravity, Health, MaxHealth, PipeBottom, PipeOwner,
-        PipeResolution, PipeTop, PlayerControlled, Position, Velocity,
+        PipeResolution, PipeTop, PlayerControlled, Position, RegenRate, TimeSinceDamage, Velocity,
     },
 };
 
@@ -22,6 +22,8 @@ pub fn spawn_player(mut commands: Commands, config: Res<GameConfig>, assets: Res
         Gravity(config.gravity),
         Health(config.bird_max_health),
         MaxHealth(config.bird_max_health),
+        RegenRate(config.bird_regen_rate),
+        TimeSinceDamage(config.bird_regen_delay_secs),
         Position(Vec2::new(-config.canvas_size.x / 4.0, 0.0)),
         Collider::Circle(config.player_size / 2.0),
         Sprite {
@@ -75,17 +77,20 @@ pub fn clamp_bird_to_vertical_bounds_and_emit_impact_damage(
     mut birds: Query<(Entity, &mut Position, &mut Velocity, &Collider), With<Bird>>,
     mut bird_damaged: MessageWriter<BirdDamaged>,
     config: Res<GameConfig>,
+    time: Res<Time>,
 ) {
     for (entity, mut position, mut velocity, collider) in &mut birds {
         let (min_y, max_y) = vertical_bounds_for_bird(config.canvas_size.y, collider);
+        let previous_y = position.0.y - velocity.0.y * time.delta_secs();
 
         if position.0.y > max_y {
             let impact_speed = outward_top_impact_speed(velocity.0.y);
+            let hit_top_this_step = crossed_top_boundary_this_step(previous_y, max_y);
             position.0.y = max_y;
             if velocity.0.y > 0.0 {
                 velocity.0.y = 0.0;
             }
-            if impact_speed > 0.0 {
+            if hit_top_this_step && impact_speed > 0.0 {
                 bird_damaged.write(BirdDamaged {
                     entity,
                     amount: impact_damage_from_speed(
@@ -97,11 +102,12 @@ pub fn clamp_bird_to_vertical_bounds_and_emit_impact_damage(
             }
         } else if position.0.y < min_y {
             let impact_speed = outward_bottom_impact_speed(velocity.0.y);
+            let hit_bottom_this_step = crossed_bottom_boundary_this_step(previous_y, min_y);
             position.0.y = min_y;
             if velocity.0.y < 0.0 {
                 velocity.0.y = 0.0;
             }
-            if impact_speed > 0.0 {
+            if hit_bottom_this_step && impact_speed > 0.0 {
                 bird_damaged.write(BirdDamaged {
                     entity,
                     amount: impact_damage_from_speed(
@@ -188,6 +194,17 @@ pub fn apply_bird_damage(
     }
 }
 
+pub fn track_recent_damage(
+    mut bird_damaged: MessageReader<BirdDamaged>,
+    mut birds: Query<&mut TimeSinceDamage, With<Bird>>,
+) {
+    for damage in bird_damaged.read() {
+        if let Ok(mut time_since_damage) = birds.get_mut(damage.entity) {
+            time_since_damage.0 = 0.0;
+        }
+    }
+}
+
 pub fn detect_bird_death(
     mut commands: Commands,
     mut bird_died: MessageWriter<BirdDied>,
@@ -197,6 +214,23 @@ pub fn detect_bird_death(
         if health.0 <= 0.0 {
             bird_died.write(BirdDied { entity });
             commands.entity(entity).remove::<Alive>();
+        }
+    }
+}
+
+pub fn apply_passive_healing(
+    mut birds: Query<
+        (&mut Health, &MaxHealth, &RegenRate, &mut TimeSinceDamage),
+        (With<Bird>, With<Alive>),
+    >,
+    time: Res<Time>,
+    config: Res<GameConfig>,
+) {
+    for (mut health, max_health, regen_rate, mut time_since_damage) in &mut birds {
+        time_since_damage.0 += time.delta_secs();
+
+        if time_since_damage.0 >= config.bird_regen_delay_secs {
+            health.0 = (health.0 + regen_rate.0 * time.delta_secs()).min(max_health.0);
         }
     }
 }
@@ -240,11 +274,20 @@ pub fn is_touching_vertical_boundary(y: f32, min_y: f32, max_y: f32) -> bool {
     (y - min_y).abs() <= EPSILON || (y - max_y).abs() <= EPSILON
 }
 
+pub fn crossed_top_boundary_this_step(previous_y: f32, max_y: f32) -> bool {
+    previous_y < max_y
+}
+
+pub fn crossed_bottom_boundary_this_step(previous_y: f32, min_y: f32) -> bool {
+    previous_y > min_y
+}
+
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
 
     use super::{
+        crossed_bottom_boundary_this_step, crossed_top_boundary_this_step,
         impact_damage_from_speed, is_touching_vertical_boundary, outward_bottom_impact_speed,
         outward_top_impact_speed, vertical_bounds_for_bird,
     };
@@ -287,5 +330,17 @@ mod tests {
         assert!(is_touching_vertical_boundary(-122.5, -122.5, 122.5));
         assert!(is_touching_vertical_boundary(122.5, -122.5, 122.5));
         assert!(!is_touching_vertical_boundary(0.0, -122.5, 122.5));
+    }
+
+    #[test]
+    fn top_impact_only_counts_when_crossing_from_inside() {
+        assert!(crossed_top_boundary_this_step(100.0, 122.5));
+        assert!(!crossed_top_boundary_this_step(122.5, 122.5));
+    }
+
+    #[test]
+    fn bottom_impact_only_counts_when_crossing_from_inside() {
+        assert!(crossed_bottom_boundary_this_step(-100.0, -122.5));
+        assert!(!crossed_bottom_boundary_this_step(-122.5, -122.5));
     }
 }

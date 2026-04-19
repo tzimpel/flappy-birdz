@@ -4,7 +4,10 @@ use super::{
     assets::GameAssets,
     config::GameConfig,
     messages::{BirdDied, RunEndRequested, RunStarted},
-    model::{Alive, BirdIntent, Health, MaxHealth, Pipe, PlayerControlled, Position, Velocity},
+    model::{
+        Alive, BirdIntent, Health, MaxHealth, Pipe, PlayerControlled, Position, TimeSinceDamage,
+        Velocity,
+    },
     pipes::{PipeSpawnTimer, spawn_initial_pipe_for_run},
     score::Score,
     state::GameState,
@@ -28,6 +31,7 @@ pub fn reset_run_entities(
             &mut BirdIntent,
             &mut Health,
             &MaxHealth,
+            &mut TimeSinceDamage,
         ),
         With<PlayerControlled>,
     >,
@@ -43,6 +47,7 @@ pub fn reset_run_entities(
     player.2.0 = Vec2::ZERO;
     player.3.flap = false;
     player.4.0 = player.5.0;
+    player.6.0 = config.bird_regen_delay_secs;
     spawn_timer.0 = Timer::new(config.pipe_spawn_interval, TimerMode::Repeating);
     commands.entity(player.0).insert(Alive);
 

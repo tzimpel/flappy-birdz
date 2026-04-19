@@ -73,11 +73,13 @@ impl Plugin for FlappyBirdPlugin {
                     model::sync_transforms,
                     bird::check_collisions,
                     bird::damage_birds_touching_vertical_bounds,
+                    bird::track_recent_damage,
                     bird::apply_bird_damage,
                     bird::detect_bird_death,
                     run::request_run_end_on_bird_death,
                     pipes::score_safe_pipe_passes,
                     score::increment_score_on_point,
+                    bird::apply_passive_healing,
                 )
                     .chain()
                     .run_if(in_state(GameState::Playing)),
