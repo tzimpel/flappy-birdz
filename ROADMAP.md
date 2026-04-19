@@ -24,9 +24,15 @@ The sequence is intentional. Each milestone introduces gameplay features only af
 
 This milestone turns the current prototype into a stronger single-player game while establishing the architectural base for everything that comes after.
 
+Status:
+
+- Implemented in the current codebase.
+- The step breakdown below is kept as the historical implementation sequence and as a checklist for regressions.
+
 ### Goals
 
 - Replace instant death on collision with health-based survival.
+- Replace out-of-bounds instant failure with boundary contact that keeps the bird visible and causes damage.
 - Add passive healing over time when the bird avoids damage.
 - End the run only when health reaches zero.
 - Add difficulty progression over the course of a run.
@@ -36,8 +42,11 @@ This milestone turns the current prototype into a stronger single-player game wh
 ### Gameplay Features
 
 - Bird health with a defined maximum.
-- Pipe collision causes damage instead of immediate game over.
+- Pipe collision causes one damage event per pipe couple instead of immediate game over.
+- A pipe couple awards score only if the bird passes it safely without colliding.
+- Top and bottom world bounds clamp the bird inside the playable space, apply impact damage based on outward vertical impact speed when hit, and apply mild continuous damage while contact persists.
 - Health regeneration over time up to max health.
+- Health is shown in the gameplay HUD alongside score.
 - Run progression that increases challenge over time.
 - Dynamic pipe gap size within a configured range.
 - Dynamic distance or spawn cadence for pipes within a configured range.
@@ -54,18 +63,22 @@ This milestone turns the current prototype into a stronger single-player game wh
   - `BirdIntent`
   - `Alive` or `Eliminated`
   - `Collider`
+  - obstacle-resolution state on pipe couples
 - Introduce a run-management resource such as:
   - `RunDirector`
   - `DifficultyDirector`
   - `ObstacleDirector`
 - Move pipe generation rules into one explicit system/resource instead of scattering values through systems.
 - Ensure that scoring, damage, healing, and death are derived by systems from state and transient messages.
+- Keep boundary clamping separate from boundary damage so movement constraints and hazard rules remain explicit.
+- Keep boundary impact damage and boundary contact damage explicit so hazard severity is tuned through damage rules rather than sticky movement behavior.
+- Scale boundary impact damage with outward vertical collision speed so light brushes are less punishing than hard crashes.
 
 ### Placeholder Notes
 
 - The current coarse restart behavior is intentional placeholder behavior, not an accidental unfinished lifecycle model.
-- It is expected to stay coarse until Milestone 1 reaches the point where restart semantics need to split into concepts such as `RunStart`, `Respawn`, and `RunReset`.
-- The current obstacle generation logic is also allowed to remain simple until obstacle generation policy is explicitly tackled.
+- Milestone 1 now includes explicit `Ready`, `Playing`, and short-lived `GameOver` phases with automatic restart after a configurable delay.
+- The current obstacle generation logic is intentionally deterministic and pattern-driven rather than random-first, but it is still expected to evolve in later milestones.
 - Deterministic future direction matters, but Milestone 1 does not require prematurely choosing the final obstacle-generation algorithm.
 
 ### Recommended Data Model
@@ -79,36 +92,75 @@ This milestone turns the current prototype into a stronger single-player game wh
   - `RegenRate`
   - `BirdIntent`
   - `Collider`
+- Components on pipe couples:
+  - `Pipe`
+  - obstacle-resolution state such as `Unresolved`, `Hit`, or `Scored`
 - Resources:
   - `GameConfig`
   - `RunDirector`
-  - `ObstacleRng` or a deterministic spawn seed/state
+  - `DifficultyDirector`
+  - `ObstacleDirector`
   - `Scoreboard` if scoring becomes more global
 - Messages:
-  - `DamageTaken`
-  - `BirdHealed`
+  - `BirdDamaged`
   - `BirdDied`
-  - `GatePassed`
-  - `RunEnded`
+  - `RunStarted`
+  - `RunEndRequested`
+  - `ScorePoint`
 
 ### Why This Comes First
 
 This milestone creates the durable simulation model that AI and multiplayer both require later. Without it, AI would need to plug into ad hoc player-specific logic, and multiplayer would need to synchronize behavior that is not yet modeled explicitly enough.
 
+### Suggested Implementation Breakdown
+
+The milestone benefits from being split into reviewable changesets that each introduce one clear gameplay or lifecycle capability at a time.
+
+1. Add minimal run-state and lifecycle structure needed to support non-instant-death gameplay.
+   This covers introducing or tightening phase/state concepts such as `Ready`, `Playing`, and `GameOver` only to the extent required for later steps.
+2. Introduce bird health as explicit simulation data.
+   Add components/resources for `Health`, `MaxHealth`, and any immediate supporting configuration without changing collision behavior yet.
+3. Replace collision-driven instant game over with collision-driven damage.
+   Pipe hits should now produce damage through explicit gameplay messages/systems rather than directly ending the run.
+4. Add gameplay health output.
+   Display health alongside score so the player can read the new health-based model before additional hazard rules and healing are layered on.
+5. Add bird death and run end behavior once health can reach zero.
+   This is the point where elimination semantics become meaningful and the run ends because the bird died, not because a collision happened.
+6. Add safe pipe passage and single-hit obstacle resolution.
+   Each pipe couple should carry one explicit resolution state, apply at most one collision-damage event, and only award score once the bird has passed it safely without colliding. This replaces score-gate-triggered scoring with obstacle-resolution-driven scoring.
+7. Replace out-of-bounds restart with boundary clamping, impact damage, and contact damage.
+   The bird should remain visible inside the world bounds, take impact damage based on outward vertical collision speed when it hits the top or bottom edge, take mild continuous damage while pressed against that edge, and still be able to take additional pipe damage in the same step.
+8. Add passive healing and its gating rules.
+   Introduce regeneration over time up to max health, using explicit state and timing rather than presentation-driven behavior.
+9. Add explicit run progression and difficulty scaling.
+   Model progression as data/resources so challenge increases over time through dedicated systems.
+10. Apply progression to obstacle generation ranges.
+   Make pipe gap size and spacing/spawn cadence evolve within configured bounds once progression data exists.
+11. Stabilize scoring and UI against the updated gameplay model.
+   Ensure score, health presentation, and game-over feedback reflect damage, healing, survival, and progression correctly.
+
+All eleven steps above are now implemented in the current codebase.
+
 ### Suggested Implementation Order
 
-1. Strengthen run-state semantics only as far as the next requested gameplay change requires.
-2. Add health and healing systems while preserving the current single-bird focus.
-3. Replace collision-to-game-over with collision-to-damage.
-4. Add death/elimination handling once health exists.
-5. Add run progression and difficulty scaling.
-6. Tackle obstacle generation policy explicitly when dynamic spacing/gaps require it.
-7. Stabilize scoring and UI around the new model.
+1. Minimal run-state and lifecycle structure
+2. Explicit bird health data
+3. Collision-to-damage conversion
+4. Gameplay health output
+5. Death and run-end handling
+6. Safe pipe passage and single-hit obstacle resolution
+7. Boundary clamping, impact damage, and contact damage
+8. Passive healing
+9. Run progression and difficulty scaling
+10. Dynamic obstacle generation ranges
+11. Scoring and UI stabilization
 
 ### Exit Criteria
 
 - The game has one human-controlled bird.
 - The bird survives collisions until health reaches zero.
+- Each pipe couple can damage the bird at most once and only awards score when passed safely.
+- The bird remains inside the vertical world bounds and takes explicit speed-scaled impact damage plus contact damage instead of failing instantly when pressing against those bounds.
 - Difficulty ramps over time through explicit systems/resources.
 - Pipe generation is controlled by data that can later be reused by AI and multiplayer.
 - The simulation no longer depends on direct UI/input coupling.

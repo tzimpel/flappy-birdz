@@ -5,6 +5,9 @@ use bevy::prelude::*;
 pub struct Bird;
 
 #[derive(Component)]
+pub struct Alive;
+
+#[derive(Component)]
 pub struct PlayerControlled;
 
 #[derive(Component, Default)]
@@ -17,12 +20,25 @@ pub struct Velocity(pub Vec2);
 pub struct Position(pub Vec2);
 
 #[derive(Component, Default)]
+pub struct Health(pub f32);
+
+#[derive(Component, Default)]
+pub struct MaxHealth(pub f32);
+
+#[derive(Component, Default)]
+pub struct RegenRate(pub f32);
+
+#[derive(Component, Default)]
+pub struct TimeSinceDamage(pub f32);
+
+#[derive(Component, Default)]
 pub struct BirdIntent {
     pub flap: bool,
 }
 
 #[derive(Component, Clone, Copy)]
 pub enum Collider {
+    #[allow(dead_code)]
     Circle(f32),
     Rect(Vec2),
 }
@@ -31,14 +47,21 @@ pub enum Collider {
 #[require(Position)]
 pub struct Pipe;
 
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PipeResolution {
+    Unresolved,
+    Hit,
+    Scored,
+}
+
+#[derive(Component, Clone, Copy)]
+pub struct PipeOwner(pub Entity);
+
 #[derive(Component)]
 pub struct PipeTop;
 
 #[derive(Component)]
 pub struct PipeBottom;
-
-#[derive(Component)]
-pub struct PointsGate;
 
 pub fn sync_transforms(mut query: Query<(&Position, &mut Transform)>) {
     for (position, mut transform) in &mut query {

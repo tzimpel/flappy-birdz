@@ -5,7 +5,7 @@ Small Flappy Bird-style prototype built with Bevy.
 The project is being used as a learning and architecture sandbox for:
 
 - scalable ECS-style gameplay code in Bevy
-- a future health/difficulty single-player mode
+- a health/difficulty single-player mode with HUD health output, safe pipe-passage scoring, boundary impact/contact damage, regeneration, and delayed game-over restart
 - AI-controlled competing birds
 - eventual multiplayer support
 
@@ -18,6 +18,16 @@ cargo run
 ## Controls
 
 Use the left or right mouse button to flap.
+
+## Current Gameplay Baseline
+
+- one human-controlled bird
+- health-based survival instead of instant death on pipe collision
+- speed-scaled impact damage and continuous contact damage at top and bottom bounds
+- passive healing after avoiding damage for a short delay
+- safe-passage scoring per pipe couple
+- difficulty ramping over time through explicit run and obstacle director resources
+- automatic restart after a short `GameOver` delay
 
 ## Current Technical Direction
 

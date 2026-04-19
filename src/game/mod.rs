@@ -17,8 +17,9 @@ use self::{
     assets::GameAssets,
     background::{BackgroundMaterial, WorldScroll},
     config::GameConfig,
-    messages::{RunRestartRequested, ScorePoint},
-    pipes::PipeSpawnTimer,
+    messages::{BirdDamaged, BirdDied, RunEndRequested, RunStarted, ScorePoint},
+    pipes::ObstacleDirector,
+    run::{DifficultyDirector, GameOverDelayTimer, RunDirector},
     score::Score,
     state::GameState,
 };
@@ -30,10 +31,16 @@ impl Plugin for FlappyBirdPlugin {
         app.init_resource::<GameConfig>()
             .init_resource::<GameAssets>()
             .init_resource::<WorldScroll>()
-            .init_resource::<PipeSpawnTimer>()
+            .init_resource::<ObstacleDirector>()
+            .init_resource::<DifficultyDirector>()
+            .init_resource::<GameOverDelayTimer>()
+            .init_resource::<RunDirector>()
             .init_resource::<Score>()
             .init_state::<GameState>()
-            .add_message::<RunRestartRequested>()
+            .add_message::<BirdDamaged>()
+            .add_message::<BirdDied>()
+            .add_message::<RunEndRequested>()
+            .add_message::<RunStarted>()
             .add_message::<ScorePoint>()
             .add_plugins(Material2dPlugin::<BackgroundMaterial>::default())
             .add_systems(
@@ -42,10 +49,21 @@ impl Plugin for FlappyBirdPlugin {
                     camera::spawn_camera,
                     background::configure_gizmos,
                     bird::spawn_player,
-                    pipes::spawn_initial_pipe,
-                    ui::spawn_score_ui,
+                    ui::spawn_hud,
                     background::spawn_background,
                 ),
+            )
+            .add_systems(
+                OnEnter(GameState::Ready),
+                (
+                    run::reset_run_entities,
+                    model::sync_transforms_after_reset,
+                    ui::score_update,
+                    ui::health_update,
+                    ui::hide_game_over_feedback,
+                    run::start_first_run,
+                )
+                    .chain(),
             )
             .add_systems(
                 FixedUpdate,
@@ -53,15 +71,21 @@ impl Plugin for FlappyBirdPlugin {
                     bird::apply_bird_intents,
                     bird::apply_gravity,
                     bird::integrate_velocity,
+                    bird::clamp_bird_to_vertical_bounds_and_emit_impact_damage,
+                    run::advance_run_difficulty,
                     pipes::shift_pipes_to_the_left,
                     pipes::spawn_pipes,
                     pipes::despawn_pipes,
                     model::sync_transforms,
-                    bird::check_in_bounds,
                     bird::check_collisions,
+                    bird::damage_birds_touching_vertical_bounds,
+                    bird::track_recent_damage,
+                    bird::apply_bird_damage,
+                    bird::detect_bird_death,
+                    run::request_run_end_on_bird_death,
+                    pipes::score_safe_pipe_passes,
                     score::increment_score_on_point,
-                    run::restart_run,
-                    model::sync_transforms_after_reset,
+                    bird::apply_passive_healing,
                 )
                     .chain()
                     .run_if(in_state(GameState::Playing)),
@@ -70,7 +94,6 @@ impl Plugin for FlappyBirdPlugin {
                 Update,
                 (
                     bird::capture_player_input,
-                    ui::score_update.run_if(resource_changed::<Score>),
                     background::update_parallax_offsets,
                     background::sync_parallax_materials,
                     bird::sync_bird_rotation,
@@ -80,7 +103,19 @@ impl Plugin for FlappyBirdPlugin {
             )
             .add_systems(
                 Update,
-                model::sync_transforms.run_if(in_state(GameState::Playing)),
+                (
+                    ui::score_update,
+                    ui::health_update,
+                    ui::sync_game_over_feedback_to_state,
+                    run::advance_game_over_delay.run_if(in_state(GameState::GameOver)),
+                    model::sync_transforms.run_if(in_state(GameState::Playing)),
+                    run::begin_playing_on_run_started,
+                    run::finish_run_on_request.run_if(in_state(GameState::Playing)),
+                ),
+            )
+            .add_systems(
+                OnEnter(GameState::GameOver),
+                (ui::show_game_over_feedback, run::begin_game_over_delay).chain(),
             );
     }
 }
