@@ -3,8 +3,8 @@ use bevy::prelude::*;
 use super::{
     assets::GameAssets,
     config::GameConfig,
-    messages::{RunEndRequested, RunStarted},
-    model::{BirdIntent, Health, MaxHealth, Pipe, PlayerControlled, Position, Velocity},
+    messages::{BirdDied, RunEndRequested, RunStarted},
+    model::{Alive, BirdIntent, Health, MaxHealth, Pipe, PlayerControlled, Position, Velocity},
     pipes::{PipeSpawnTimer, spawn_initial_pipe_for_run},
     score::Score,
     state::GameState,
@@ -22,6 +22,7 @@ pub fn start_first_run(mut run_started: MessageWriter<RunStarted>) {
 pub fn reset_run_entities(
     mut player: Single<
         (
+            Entity,
             &mut Position,
             &mut Velocity,
             &mut BirdIntent,
@@ -38,11 +39,12 @@ pub fn reset_run_entities(
     config: Res<GameConfig>,
 ) {
     score.0 = 0;
-    player.0.0 = restart_position(config.canvas_size.x);
-    player.1.0 = Vec2::ZERO;
-    player.2.flap = false;
-    player.3.0 = player.4.0;
+    player.1.0 = restart_position(config.canvas_size.x);
+    player.2.0 = Vec2::ZERO;
+    player.3.flap = false;
+    player.4.0 = player.5.0;
     spawn_timer.0 = Timer::new(config.pipe_spawn_interval, TimerMode::Repeating);
+    commands.entity(player.0).insert(Alive);
 
     for entity in &pipes {
         commands.entity(entity).despawn();
@@ -71,6 +73,16 @@ pub fn finish_run_on_request(
 
     run_director.current_run += 1;
     next_state.set(GameState::GameOver);
+}
+
+pub fn request_run_end_on_bird_death(
+    mut bird_died: MessageReader<BirdDied>,
+    mut run_end_requests: MessageWriter<RunEndRequested>,
+) {
+    if let Some(death) = bird_died.read().next() {
+        let _entity = death.entity;
+        run_end_requests.write(RunEndRequested);
+    }
 }
 
 pub fn queue_next_run_from_game_over(mut next_state: ResMut<NextState<GameState>>) {

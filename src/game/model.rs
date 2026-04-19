@@ -5,6 +5,9 @@ use bevy::prelude::*;
 pub struct Bird;
 
 #[derive(Component)]
+pub struct Alive;
+
+#[derive(Component)]
 pub struct PlayerControlled;
 
 #[derive(Component, Default)]

@@ -7,15 +7,16 @@ use bevy::{
 use super::{
     assets::GameAssets,
     config::GameConfig,
-    messages::{BirdDamaged, RunEndRequested, ScorePoint},
+    messages::{BirdDamaged, BirdDied, RunEndRequested, ScorePoint},
     model::{
-        Bird, BirdIntent, Collider, Gravity, Health, MaxHealth, PipeBottom, PipeTop,
+        Alive, Bird, BirdIntent, Collider, Gravity, Health, MaxHealth, PipeBottom, PipeTop,
         PlayerControlled, PointsGate, Position, Velocity,
     },
 };
 
 pub fn spawn_player(mut commands: Commands, config: Res<GameConfig>, assets: Res<GameAssets>) {
     commands.spawn((
+        Alive,
         Bird,
         PlayerControlled,
         Gravity(config.gravity),
@@ -143,6 +144,19 @@ pub fn apply_bird_damage(
     for damage in bird_damaged.read() {
         if let Ok(mut health) = birds.get_mut(damage.entity) {
             health.0 = (health.0 - damage.amount).max(0.0);
+        }
+    }
+}
+
+pub fn detect_bird_death(
+    mut commands: Commands,
+    mut bird_died: MessageWriter<BirdDied>,
+    birds: Query<(Entity, &Health), (With<Bird>, With<Alive>)>,
+) {
+    for (entity, health) in &birds {
+        if health.0 <= 0.0 {
+            bird_died.write(BirdDied { entity });
+            commands.entity(entity).remove::<Alive>();
         }
     }
 }

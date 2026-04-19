@@ -10,6 +10,11 @@ pub struct BirdDamaged {
 }
 
 #[derive(Message)]
+pub struct BirdDied {
+    pub entity: Entity,
+}
+
+#[derive(Message)]
 pub struct RunStarted;
 
 #[derive(Message)]
