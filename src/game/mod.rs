@@ -17,7 +17,7 @@ use self::{
     assets::GameAssets,
     background::{BackgroundMaterial, WorldScroll},
     config::GameConfig,
-    messages::{RunEndRequested, RunStarted, ScorePoint},
+    messages::{BirdDamaged, RunEndRequested, RunStarted, ScorePoint},
     pipes::PipeSpawnTimer,
     run::RunDirector,
     score::Score,
@@ -35,6 +35,7 @@ impl Plugin for FlappyBirdPlugin {
             .init_resource::<RunDirector>()
             .init_resource::<Score>()
             .init_state::<GameState>()
+            .add_message::<BirdDamaged>()
             .add_message::<RunEndRequested>()
             .add_message::<RunStarted>()
             .add_message::<ScorePoint>()
@@ -70,6 +71,7 @@ impl Plugin for FlappyBirdPlugin {
                     model::sync_transforms,
                     bird::check_in_bounds,
                     bird::check_collisions,
+                    bird::apply_bird_damage,
                     score::increment_score_on_point,
                 )
                     .chain()

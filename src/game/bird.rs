@@ -7,7 +7,7 @@ use bevy::{
 use super::{
     assets::GameAssets,
     config::GameConfig,
-    messages::{RunEndRequested, ScorePoint},
+    messages::{BirdDamaged, RunEndRequested, ScorePoint},
     model::{
         Bird, BirdIntent, Collider, Gravity, Health, MaxHealth, PipeBottom, PipeTop,
         PlayerControlled, PointsGate, Position, Velocity,
@@ -82,21 +82,22 @@ pub fn check_in_bounds(
 
 pub fn check_collisions(
     mut commands: Commands,
-    mut run_end_requests: MessageWriter<RunEndRequested>,
+    mut bird_damaged: MessageWriter<BirdDamaged>,
     mut score_points: MessageWriter<ScorePoint>,
-    player: Single<(&Position, &Collider), With<PlayerControlled>>,
+    player: Single<(Entity, &Position, &Collider), With<PlayerControlled>>,
     pipe_segments: Query<(&Collider, Entity), Or<(With<PipeTop>, With<PipeBottom>)>>,
     pipe_gaps: Query<(&Collider, Entity), With<PointsGate>>,
     mut gizmos: Gizmos,
     transform_helper: TransformHelper,
+    config: Res<GameConfig>,
 ) -> Result<()> {
-    let player_radius = match player.1 {
+    let player_radius = match player.2 {
         Collider::Circle(radius) => *radius,
         Collider::Rect(size) => size.x.min(size.y) / 2.0,
     };
-    let player_collider = BoundingCircle::new(player.0.0, player_radius);
+    let player_collider = BoundingCircle::new(player.1.0, player_radius);
 
-    gizmos.circle_2d(player.0.0, player_radius, RED_400);
+    gizmos.circle_2d(player.1.0, player_radius, RED_400);
 
     for (collider, entity) in &pipe_segments {
         let pipe_transform = transform_helper.compute_global_transform(entity)?;
@@ -109,7 +110,10 @@ pub fn check_collisions(
         gizmos.rect_2d(pipe_transform.translation().xy(), pipe_size, RED_400);
 
         if player_collider.intersects(&pipe_collider) {
-            run_end_requests.write(RunEndRequested);
+            bird_damaged.write(BirdDamaged {
+                entity: player.0,
+                amount: config.pipe_collision_damage,
+            });
         }
     }
 
@@ -130,6 +134,17 @@ pub fn check_collisions(
     }
 
     Ok(())
+}
+
+pub fn apply_bird_damage(
+    mut bird_damaged: MessageReader<BirdDamaged>,
+    mut birds: Query<&mut Health, With<Bird>>,
+) {
+    for damage in bird_damaged.read() {
+        if let Ok(mut health) = birds.get_mut(damage.entity) {
+            health.0 = (health.0 - damage.amount).max(0.0);
+        }
+    }
 }
 
 pub fn sync_bird_rotation(
