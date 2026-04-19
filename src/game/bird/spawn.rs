@@ -20,9 +20,9 @@ pub fn spawn_player(mut commands: Commands, config: Res<GameConfig>, assets: Res
         RegenRate(config.bird_regen_rate),
         TimeSinceDamage(config.bird_regen_delay_secs),
         Position(Vec2::new(-config.canvas_size.x / 4.0, 0.0)),
-        Collider::Circle(config.player_size / 2.0),
+        Collider::Rect(config.bird_size),
         Sprite {
-            custom_size: Some(Vec2::splat(config.player_size)),
+            custom_size: Some(config.bird_size),
             image: assets.bird_image.clone(),
             color: config.foreground_color,
             ..default()

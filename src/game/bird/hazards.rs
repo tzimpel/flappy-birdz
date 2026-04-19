@@ -87,13 +87,7 @@ pub fn check_collisions(
     transform_helper: TransformHelper,
     config: Res<GameConfig>,
 ) -> Result<()> {
-    let player_radius = match player.2 {
-        Collider::Circle(radius) => *radius,
-        Collider::Rect(size) => size.x.min(size.y) / 2.0,
-    };
-    let player_collider = BoundingCircle::new(player.1.0, player_radius);
-
-    gizmos.circle_2d(player.1.0, player_radius, RED_400);
+    draw_bird_collider_gizmo(&mut gizmos, player.1.0, player.2);
 
     for (collider, owner, entity) in &pipe_segments {
         let pipe_transform = transform_helper.compute_global_transform(entity)?;
@@ -105,7 +99,7 @@ pub fn check_collisions(
 
         gizmos.rect_2d(pipe_transform.translation().xy(), pipe_size, RED_400);
 
-        if player_collider.intersects(&pipe_collider) {
+        if bird_collider_intersects_pipe(player.1.0, player.2, &pipe_collider) {
             let Ok(mut resolution) = pipe_roots.get_mut(owner.0) else {
                 continue;
             };
@@ -121,6 +115,30 @@ pub fn check_collisions(
     }
 
     Ok(())
+}
+
+fn bird_collider_intersects_pipe(
+    bird_position: Vec2,
+    bird_collider: &Collider,
+    pipe_collider: &Aabb2d,
+) -> bool {
+    match bird_collider {
+        Collider::Circle(radius) => {
+            BoundingCircle::new(bird_position, *radius).intersects(pipe_collider)
+        }
+        Collider::Rect(size) => Aabb2d::new(bird_position, *size / 2.0).intersects(pipe_collider),
+    }
+}
+
+fn draw_bird_collider_gizmo(gizmos: &mut Gizmos, bird_position: Vec2, bird_collider: &Collider) {
+    match bird_collider {
+        Collider::Circle(radius) => {
+            gizmos.circle_2d(bird_position, *radius, RED_400);
+        }
+        Collider::Rect(size) => {
+            gizmos.rect_2d(bird_position, *size, RED_400);
+        }
+    }
 }
 
 pub fn vertical_bounds_for_bird(canvas_height: f32, collider: &Collider) -> (f32, f32) {
@@ -162,12 +180,13 @@ pub fn crossed_bottom_boundary_this_step(previous_y: f32, min_y: f32) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use bevy::math::bounding::Aabb2d;
     use bevy::prelude::*;
 
     use super::{
-        crossed_bottom_boundary_this_step, crossed_top_boundary_this_step,
-        impact_damage_from_speed, is_touching_vertical_boundary, outward_bottom_impact_speed,
-        outward_top_impact_speed, vertical_bounds_for_bird,
+        bird_collider_intersects_pipe, crossed_bottom_boundary_this_step,
+        crossed_top_boundary_this_step, impact_damage_from_speed, is_touching_vertical_boundary,
+        outward_bottom_impact_speed, outward_top_impact_speed, vertical_bounds_for_bird,
     };
     use crate::game::model::Collider;
 
@@ -221,5 +240,16 @@ mod tests {
     fn bottom_impact_only_counts_when_crossing_from_inside() {
         assert!(crossed_bottom_boundary_this_step(-100.0, -122.5));
         assert!(!crossed_bottom_boundary_this_step(-122.5, -122.5));
+    }
+
+    #[test]
+    fn rect_bird_collider_intersects_pipe_from_overlap() {
+        let pipe = Aabb2d::new(Vec2::new(10.0, 0.0), Vec2::new(5.0, 20.0));
+
+        assert!(bird_collider_intersects_pipe(
+            Vec2::new(0.0, 0.0),
+            &Collider::Rect(Vec2::new(20.0, 20.0)),
+            &pipe
+        ));
     }
 }

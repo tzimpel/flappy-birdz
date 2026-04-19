@@ -38,6 +38,7 @@ pub struct BirdIntent {
 
 #[derive(Component, Clone, Copy)]
 pub enum Collider {
+    #[allow(dead_code)]
     Circle(f32),
     Rect(Vec2),
 }

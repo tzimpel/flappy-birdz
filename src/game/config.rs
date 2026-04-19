@@ -5,7 +5,7 @@ use bevy::prelude::*;
 #[derive(Resource, Clone)]
 pub struct GameConfig {
     pub canvas_size: Vec2,
-    pub player_size: f32,
+    pub bird_size: Vec2,
     pub bird_max_health: f32,
     pub bird_regen_rate: f32,
     pub bird_regen_delay_secs: f32,
@@ -38,10 +38,11 @@ pub struct GameConfig {
 impl Default for GameConfig {
     fn default() -> Self {
         let canvas_size = Vec2::new(480.0, 270.0);
+        let bird_size = Vec2::new(25.0 * 244.0 / 256.0, 25.0 * 186.0 / 256.0);
 
         Self {
             canvas_size,
-            player_size: 25.0,
+            bird_size,
             bird_max_health: 100.0,
             bird_regen_rate: 6.0,
             bird_regen_delay_secs: 2.0,
