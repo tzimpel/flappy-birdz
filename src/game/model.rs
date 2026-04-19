@@ -17,6 +17,12 @@ pub struct Velocity(pub Vec2);
 pub struct Position(pub Vec2);
 
 #[derive(Component, Default)]
+pub struct Health(pub f32);
+
+#[derive(Component, Default)]
+pub struct MaxHealth(pub f32);
+
+#[derive(Component, Default)]
 pub struct BirdIntent {
     pub flap: bool,
 }

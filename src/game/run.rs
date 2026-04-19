@@ -4,7 +4,7 @@ use super::{
     assets::GameAssets,
     config::GameConfig,
     messages::{RunEndRequested, RunStarted},
-    model::{BirdIntent, Pipe, PlayerControlled, Position, Velocity},
+    model::{BirdIntent, Health, MaxHealth, Pipe, PlayerControlled, Position, Velocity},
     pipes::{PipeSpawnTimer, spawn_initial_pipe_for_run},
     score::Score,
     state::GameState,
@@ -20,7 +20,16 @@ pub fn start_first_run(mut run_started: MessageWriter<RunStarted>) {
 }
 
 pub fn reset_run_entities(
-    mut player: Single<(&mut Position, &mut Velocity, &mut BirdIntent), With<PlayerControlled>>,
+    mut player: Single<
+        (
+            &mut Position,
+            &mut Velocity,
+            &mut BirdIntent,
+            &mut Health,
+            &MaxHealth,
+        ),
+        With<PlayerControlled>,
+    >,
     mut score: ResMut<Score>,
     mut spawn_timer: ResMut<PipeSpawnTimer>,
     pipes: Query<Entity, With<Pipe>>,
@@ -32,6 +41,7 @@ pub fn reset_run_entities(
     player.0.0 = restart_position(config.canvas_size.x);
     player.1.0 = Vec2::ZERO;
     player.2.flap = false;
+    player.3.0 = player.4.0;
     spawn_timer.0 = Timer::new(config.pipe_spawn_interval, TimerMode::Repeating);
 
     for entity in &pipes {

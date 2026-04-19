@@ -9,8 +9,8 @@ use super::{
     config::GameConfig,
     messages::{RunEndRequested, ScorePoint},
     model::{
-        Bird, BirdIntent, Collider, Gravity, PipeBottom, PipeTop, PlayerControlled, PointsGate,
-        Position, Velocity,
+        Bird, BirdIntent, Collider, Gravity, Health, MaxHealth, PipeBottom, PipeTop,
+        PlayerControlled, PointsGate, Position, Velocity,
     },
 };
 
@@ -19,6 +19,8 @@ pub fn spawn_player(mut commands: Commands, config: Res<GameConfig>, assets: Res
         Bird,
         PlayerControlled,
         Gravity(config.gravity),
+        Health(config.bird_max_health),
+        MaxHealth(config.bird_max_health),
         Position(Vec2::new(-config.canvas_size.x / 4.0, 0.0)),
         Collider::Circle(config.player_size / 2.0),
         Sprite {

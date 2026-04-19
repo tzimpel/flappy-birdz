@@ -6,6 +6,7 @@ use bevy::prelude::*;
 pub struct GameConfig {
     pub canvas_size: Vec2,
     pub player_size: f32,
+    pub bird_max_health: f32,
     pub gravity: f32,
     pub flap_velocity: f32,
     pub background_parallax_factor: f32,
@@ -26,6 +27,7 @@ impl Default for GameConfig {
         Self {
             canvas_size,
             player_size: 25.0,
+            bird_max_health: 100.0,
             gravity: 1000.0,
             flap_velocity: 300.0,
             background_parallax_factor: 0.0005,
