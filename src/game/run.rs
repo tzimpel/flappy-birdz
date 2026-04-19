@@ -44,6 +44,7 @@ pub fn reset_run_entities(
     mut score: ResMut<Score>,
     mut difficulty: ResMut<DifficultyDirector>,
     mut obstacle_director: ResMut<ObstacleDirector>,
+    mut fixed_time: ResMut<Time<Fixed>>,
     pipes: Query<Entity, With<Pipe>>,
     assets: Res<GameAssets>,
     mut commands: Commands,
@@ -58,6 +59,10 @@ pub fn reset_run_entities(
     difficulty.elapsed_secs = 0.0;
     difficulty.normalized = 0.0;
     obstacle_director.time_until_spawn = config.pipe_spawn_interval_easy.as_secs_f32();
+    obstacle_director.last_gap_center_y = 0.0;
+    obstacle_director.step_pattern_index = 0;
+    let fixed_overstep = fixed_time.overstep();
+    fixed_time.discard_overstep(fixed_overstep);
     commands.entity(player.0).insert(Alive);
 
     for entity in &pipes {
