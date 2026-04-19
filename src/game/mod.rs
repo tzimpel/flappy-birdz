@@ -46,7 +46,7 @@ impl Plugin for FlappyBirdPlugin {
                     camera::spawn_camera,
                     background::configure_gizmos,
                     bird::spawn_player,
-                    ui::spawn_score_ui,
+                    ui::spawn_hud,
                     background::spawn_background,
                 ),
             )
@@ -92,6 +92,7 @@ impl Plugin for FlappyBirdPlugin {
                 Update,
                 (
                     ui::score_update.run_if(resource_changed::<Score>),
+                    ui::health_update,
                     model::sync_transforms.run_if(in_state(GameState::Playing)),
                     run::begin_playing_on_run_started,
                     run::finish_run_on_request.run_if(in_state(GameState::Playing)),
