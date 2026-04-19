@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use bevy::prelude::*;
 
 use super::{
@@ -7,15 +9,20 @@ use super::{
     model::{
         Collider, Pipe, PipeBottom, PipeOwner, PipeResolution, PipeTop, PlayerControlled, Position,
     },
+    run::DifficultyDirector,
 };
 
 #[derive(Resource)]
-pub struct PipeSpawnTimer(pub Timer);
+pub struct ObstacleDirector {
+    pub time_until_spawn: f32,
+}
 
-impl FromWorld for PipeSpawnTimer {
+impl FromWorld for ObstacleDirector {
     fn from_world(world: &mut World) -> Self {
-        let interval = world.resource::<GameConfig>().pipe_spawn_interval;
-        Self(Timer::new(interval, TimerMode::Repeating))
+        let interval = world.resource::<GameConfig>().pipe_spawn_interval_easy;
+        Self {
+            time_until_spawn: interval.as_secs_f32(),
+        }
     }
 }
 
@@ -25,29 +32,41 @@ pub fn spawn_initial_pipe_for_run(
     assets: &GameAssets,
 ) {
     let spawn_position = initial_pipe_spawn_position(config.canvas_size.x, config.pipe_size.x);
-    spawn_pipe(commands, config, assets, spawn_position, 0.0);
+    spawn_pipe(
+        commands,
+        config,
+        assets,
+        spawn_position,
+        0.0,
+        current_pipe_gap_size(config, 0.0),
+    );
 }
 
 pub fn spawn_pipes(
     mut commands: Commands,
     time: Res<Time>,
-    mut spawn_timer: ResMut<PipeSpawnTimer>,
+    mut obstacle_director: ResMut<ObstacleDirector>,
     config: Res<GameConfig>,
     assets: Res<GameAssets>,
+    difficulty: Res<DifficultyDirector>,
 ) {
-    if !spawn_timer.0.tick(time.delta()).just_finished() {
-        return;
-    }
+    obstacle_director.time_until_spawn -= time.delta_secs();
 
-    let spawn_position = repeating_pipe_spawn_position(config.canvas_size.x);
-    let gap_y_position = compute_gap_y_position(time.elapsed_secs(), config.canvas_size.y);
-    spawn_pipe(
-        &mut commands,
-        &config,
-        &assets,
-        spawn_position,
-        gap_y_position,
-    );
+    while obstacle_director.time_until_spawn <= 0.0 {
+        let spawn_position = repeating_pipe_spawn_position(config.canvas_size.x);
+        let gap_y_position = compute_gap_y_position(difficulty.elapsed_secs, config.canvas_size.y);
+        let gap_size = current_pipe_gap_size(&config, difficulty.normalized);
+        spawn_pipe(
+            &mut commands,
+            &config,
+            &assets,
+            spawn_position,
+            gap_y_position,
+            gap_size,
+        );
+        obstacle_director.time_until_spawn +=
+            current_pipe_spawn_interval(&config, difficulty.normalized).as_secs_f32();
+    }
 }
 
 pub fn shift_pipes_to_the_left(
@@ -78,13 +97,14 @@ fn spawn_pipe(
     assets: &GameAssets,
     spawn_position: Vec2,
     gap_y_position: f32,
+    gap_size: f32,
 ) {
     let image_mode = SpriteImageMode::Sliced(TextureSlicer {
         border: BorderRect::axes(8.0, 19.0),
         center_scale_mode: SliceScaleMode::Stretch,
         ..default()
     });
-    let pipe_offset = config.pipe_size.y / 2.0 + config.pipe_gap_size / 2.0;
+    let pipe_offset = config.pipe_size.y / 2.0 + gap_size / 2.0;
     let root = commands
         .spawn((
             Pipe,
@@ -135,6 +155,30 @@ pub fn compute_gap_y_position(elapsed_secs: f32, canvas_height: f32) -> f32 {
     (elapsed_secs * 4.2309875).sin() * canvas_height / 4.0
 }
 
+pub fn lerp_f32(start: f32, end: f32, t: f32) -> f32 {
+    start + (end - start) * t
+}
+
+pub fn lerp_duration(start: Duration, end: Duration, t: f32) -> Duration {
+    Duration::from_secs_f32(lerp_f32(start.as_secs_f32(), end.as_secs_f32(), t))
+}
+
+pub fn current_pipe_spawn_interval(config: &GameConfig, difficulty: f32) -> Duration {
+    lerp_duration(
+        config.pipe_spawn_interval_easy,
+        config.pipe_spawn_interval_hard,
+        difficulty,
+    )
+}
+
+pub fn current_pipe_gap_size(config: &GameConfig, difficulty: f32) -> f32 {
+    lerp_f32(
+        config.pipe_gap_size_easy,
+        config.pipe_gap_size_hard,
+        difficulty,
+    )
+}
+
 pub fn score_safe_pipe_passes(
     player: Single<(&Position, &Collider), With<PlayerControlled>>,
     mut pipes: Query<(&Position, &mut PipeResolution), With<Pipe>>,
@@ -175,12 +219,19 @@ pub fn has_bird_safely_passed_pipe(bird_left_x: f32, pipe_right_x: f32) -> bool 
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use bevy::prelude::*;
 
     use super::{
-        bird_left_edge, compute_gap_y_position, has_bird_safely_passed_pipe,
-        initial_pipe_spawn_position, pipe_right_edge, repeating_pipe_spawn_position,
+        bird_left_edge, compute_gap_y_position, current_pipe_gap_size, current_pipe_spawn_interval,
+        has_bird_safely_passed_pipe, initial_pipe_spawn_position, lerp_duration, lerp_f32,
+        pipe_right_edge, repeating_pipe_spawn_position,
     };
+
+    fn test_config() -> crate::game::config::GameConfig {
+        crate::game::config::GameConfig::default()
+    }
 
     #[test]
     fn initial_pipe_starts_fully_visible_on_right_edge() {
@@ -226,5 +277,63 @@ mod tests {
     #[test]
     fn bird_scores_once_fully_past_pipe() {
         assert!(has_bird_safely_passed_pipe(240.1, 240.0));
+    }
+
+    #[test]
+    fn lerp_f32_returns_endpoints() {
+        assert_eq!(lerp_f32(10.0, 20.0, 0.0), 10.0);
+        assert_eq!(lerp_f32(10.0, 20.0, 1.0), 20.0);
+    }
+
+    #[test]
+    fn lerp_duration_returns_endpoints() {
+        assert_eq!(
+            lerp_duration(Duration::from_secs(2), Duration::from_secs(1), 0.0),
+            Duration::from_secs(2)
+        );
+        assert_eq!(
+            lerp_duration(Duration::from_secs(2), Duration::from_secs(1), 1.0),
+            Duration::from_secs(1)
+        );
+    }
+
+    #[test]
+    fn current_spawn_interval_uses_easy_value_at_zero_difficulty() {
+        let config = test_config();
+        assert!(
+            (current_pipe_spawn_interval(&config, 0.0).as_secs_f32()
+                - config.pipe_spawn_interval_easy.as_secs_f32())
+            .abs()
+                < 0.0001
+        );
+    }
+
+    #[test]
+    fn current_spawn_interval_uses_hard_value_at_max_difficulty() {
+        let config = test_config();
+        assert!(
+            (current_pipe_spawn_interval(&config, 1.0).as_secs_f32()
+                - config.pipe_spawn_interval_hard.as_secs_f32())
+            .abs()
+                < 0.0001
+        );
+    }
+
+    #[test]
+    fn current_gap_size_uses_easy_value_at_zero_difficulty() {
+        let config = test_config();
+        assert_eq!(
+            current_pipe_gap_size(&config, 0.0),
+            config.pipe_gap_size_easy
+        );
+    }
+
+    #[test]
+    fn current_gap_size_uses_hard_value_at_max_difficulty() {
+        let config = test_config();
+        assert_eq!(
+            current_pipe_gap_size(&config, 1.0),
+            config.pipe_gap_size_hard
+        );
     }
 }

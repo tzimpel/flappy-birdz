@@ -18,8 +18,8 @@ use self::{
     background::{BackgroundMaterial, WorldScroll},
     config::GameConfig,
     messages::{BirdDamaged, BirdDied, RunEndRequested, RunStarted, ScorePoint},
-    pipes::PipeSpawnTimer,
-    run::RunDirector,
+    pipes::ObstacleDirector,
+    run::{DifficultyDirector, RunDirector},
     score::Score,
     state::GameState,
 };
@@ -31,7 +31,8 @@ impl Plugin for FlappyBirdPlugin {
         app.init_resource::<GameConfig>()
             .init_resource::<GameAssets>()
             .init_resource::<WorldScroll>()
-            .init_resource::<PipeSpawnTimer>()
+            .init_resource::<ObstacleDirector>()
+            .init_resource::<DifficultyDirector>()
             .init_resource::<RunDirector>()
             .init_resource::<Score>()
             .init_state::<GameState>()
@@ -67,6 +68,7 @@ impl Plugin for FlappyBirdPlugin {
                     bird::apply_gravity,
                     bird::integrate_velocity,
                     bird::clamp_bird_to_vertical_bounds_and_emit_impact_damage,
+                    run::advance_run_difficulty,
                     pipes::shift_pipes_to_the_left,
                     pipes::spawn_pipes,
                     pipes::despawn_pipes,

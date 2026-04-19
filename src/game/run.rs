@@ -8,7 +8,7 @@ use super::{
         Alive, BirdIntent, Health, MaxHealth, Pipe, PlayerControlled, Position, TimeSinceDamage,
         Velocity,
     },
-    pipes::{PipeSpawnTimer, spawn_initial_pipe_for_run},
+    pipes::{ObstacleDirector, spawn_initial_pipe_for_run},
     score::Score,
     state::GameState,
 };
@@ -16,6 +16,12 @@ use super::{
 #[derive(Resource, Default)]
 pub struct RunDirector {
     pub current_run: u32,
+}
+
+#[derive(Resource, Default)]
+pub struct DifficultyDirector {
+    pub elapsed_secs: f32,
+    pub normalized: f32,
 }
 
 pub fn start_first_run(mut run_started: MessageWriter<RunStarted>) {
@@ -36,7 +42,8 @@ pub fn reset_run_entities(
         With<PlayerControlled>,
     >,
     mut score: ResMut<Score>,
-    mut spawn_timer: ResMut<PipeSpawnTimer>,
+    mut difficulty: ResMut<DifficultyDirector>,
+    mut obstacle_director: ResMut<ObstacleDirector>,
     pipes: Query<Entity, With<Pipe>>,
     assets: Res<GameAssets>,
     mut commands: Commands,
@@ -48,7 +55,9 @@ pub fn reset_run_entities(
     player.3.flap = false;
     player.4.0 = player.5.0;
     player.6.0 = config.bird_regen_delay_secs;
-    spawn_timer.0 = Timer::new(config.pipe_spawn_interval, TimerMode::Repeating);
+    difficulty.elapsed_secs = 0.0;
+    difficulty.normalized = 0.0;
+    obstacle_director.time_until_spawn = config.pipe_spawn_interval_easy.as_secs_f32();
     commands.entity(player.0).insert(Alive);
 
     for entity in &pipes {
@@ -65,6 +74,18 @@ pub fn begin_playing_on_run_started(
     if run_started.read().next().is_some() {
         next_state.set(GameState::Playing);
     }
+}
+
+pub fn advance_run_difficulty(
+    mut difficulty: ResMut<DifficultyDirector>,
+    time: Res<Time>,
+    config: Res<GameConfig>,
+) {
+    difficulty.elapsed_secs += time.delta_secs();
+    difficulty.normalized = normalized_difficulty(
+        difficulty.elapsed_secs,
+        config.difficulty_ramp_duration_secs,
+    );
 }
 
 pub fn finish_run_on_request(
@@ -98,14 +119,33 @@ pub fn restart_position(canvas_width: f32) -> Vec2 {
     Vec2::new(-canvas_width / 4.0, 0.0)
 }
 
+pub fn normalized_difficulty(elapsed_secs: f32, ramp_duration_secs: f32) -> f32 {
+    (elapsed_secs / ramp_duration_secs).clamp(0.0, 1.0)
+}
+
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
 
-    use super::restart_position;
+    use super::{normalized_difficulty, restart_position};
 
     #[test]
     fn restart_position_places_player_on_left_quarter() {
         assert_eq!(restart_position(480.0), Vec2::new(-120.0, 0.0));
+    }
+
+    #[test]
+    fn normalized_difficulty_starts_at_zero() {
+        assert_eq!(normalized_difficulty(0.0, 45.0), 0.0);
+    }
+
+    #[test]
+    fn normalized_difficulty_reaches_halfway_mid_ramp() {
+        assert_eq!(normalized_difficulty(22.5, 45.0), 0.5);
+    }
+
+    #[test]
+    fn normalized_difficulty_caps_at_one() {
+        assert_eq!(normalized_difficulty(60.0, 45.0), 1.0);
     }
 }
