@@ -37,7 +37,8 @@ This milestone turns the current prototype into a stronger single-player game wh
 ### Gameplay Features
 
 - Bird health with a defined maximum.
-- Pipe collision causes damage instead of immediate game over.
+- Pipe collision causes one damage event per pipe couple instead of immediate game over.
+- A pipe couple awards score only if the bird passes it safely without colliding.
 - Top and bottom world bounds clamp the bird inside the playable space and apply mild continuous damage while contact persists.
 - Health regeneration over time up to max health.
 - Health is shown in the gameplay HUD alongside score.
@@ -57,6 +58,7 @@ This milestone turns the current prototype into a stronger single-player game wh
   - `BirdIntent`
   - `Alive` or `Eliminated`
   - `Collider`
+  - obstacle-resolution state on pipe couples
 - Introduce a run-management resource such as:
   - `RunDirector`
   - `DifficultyDirector`
@@ -83,6 +85,9 @@ This milestone turns the current prototype into a stronger single-player game wh
   - `RegenRate`
   - `BirdIntent`
   - `Collider`
+- Components on pipe couples:
+  - `Pipe`
+  - obstacle-resolution state such as `Unresolved`, `Hit`, or `Scored`
 - Resources:
   - `GameConfig`
   - `RunDirector`
@@ -92,7 +97,7 @@ This milestone turns the current prototype into a stronger single-player game wh
   - `DamageTaken`
   - `BirdHealed`
   - `BirdDied`
-  - `GatePassed`
+  - `PipePassedSafely`
   - `RunEnded`
 
 ### Why This Comes First
@@ -113,15 +118,17 @@ The milestone benefits from being split into reviewable changesets that each int
    Display health alongside score so the player can read the new health-based model before additional hazard rules and healing are layered on.
 5. Add bird death and run end behavior once health can reach zero.
    This is the point where elimination semantics become meaningful and the run ends because the bird died, not because a collision happened.
-6. Replace out-of-bounds restart with boundary clamping and contact damage.
+6. Add safe pipe passage and single-hit obstacle resolution.
+   Each pipe couple should carry one explicit resolution state, apply at most one collision-damage event, and only award score once the bird has passed it safely without colliding. This replaces score-gate-triggered scoring with obstacle-resolution-driven scoring.
+7. Replace out-of-bounds restart with boundary clamping and contact damage.
    The bird should remain visible inside the world bounds, take mild continuous damage while pressed against the top or bottom edge, and still be able to take additional pipe damage in the same step.
-7. Add passive healing and its gating rules.
+8. Add passive healing and its gating rules.
    Introduce regeneration over time up to max health, using explicit state and timing rather than presentation-driven behavior.
-8. Add explicit run progression and difficulty scaling.
+9. Add explicit run progression and difficulty scaling.
    Model progression as data/resources so challenge increases over time through dedicated systems.
-9. Apply progression to obstacle generation ranges.
+10. Apply progression to obstacle generation ranges.
    Make pipe gap size and spacing/spawn cadence evolve within configured bounds once progression data exists.
-10. Stabilize scoring and UI against the updated gameplay model.
+11. Stabilize scoring and UI against the updated gameplay model.
    Ensure score, health presentation, and game-over feedback reflect damage, healing, survival, and progression correctly.
 
 ### Suggested Implementation Order
@@ -131,16 +138,18 @@ The milestone benefits from being split into reviewable changesets that each int
 3. Collision-to-damage conversion
 4. Gameplay health output
 5. Death and run-end handling
-6. Boundary clamping and contact damage
-7. Passive healing
-8. Run progression and difficulty scaling
-9. Dynamic obstacle generation ranges
-10. Scoring and UI stabilization
+6. Safe pipe passage and single-hit obstacle resolution
+7. Boundary clamping and contact damage
+8. Passive healing
+9. Run progression and difficulty scaling
+10. Dynamic obstacle generation ranges
+11. Scoring and UI stabilization
 
 ### Exit Criteria
 
 - The game has one human-controlled bird.
 - The bird survives collisions until health reaches zero.
+- Each pipe couple can damage the bird at most once and only awards score when passed safely.
 - The bird remains inside the vertical world bounds and takes mild contact damage instead of failing instantly when pressing against those bounds.
 - Difficulty ramps over time through explicit systems/resources.
 - Pipe generation is controlled by data that can later be reused by AI and multiplayer.

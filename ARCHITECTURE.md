@@ -62,6 +62,7 @@ Current direction:
 - coarse restart behavior is expressed through `RunRestartRequested`
 - scoring is expressed through `ScorePoint`
 - damage, death, and other transient hazard facts are expected to keep moving toward explicit gameplay messages
+- obstacle resolution should move toward explicit obstacle state rather than hidden helper colliders determining score semantics
 
 This is still a simple model, but it is more extensible than embedding all control flow in direct system side effects.
 The current restart behavior is an intentional placeholder for the current game mechanics, not an accidental partial implementation of the final run lifecycle.
@@ -90,7 +91,7 @@ The `src/game/` directory is organized by concern.
   - movement, bounds, collision, rotation
 - `pipes.rs`
   - timed obstacle spawning
-  - obstacle positioning and movement
+  - obstacle positioning, movement, and obstacle-resolution state
 - `run.rs`
   - current coarse restart behavior
 - `score.rs`
@@ -140,6 +141,7 @@ Some parts of the implementation are intentionally still transitional:
 
 - collisions still trigger a coarse run restart rather than damage/death semantics
 - out-of-bounds behavior is still coarse and will evolve toward explicit boundary clamping plus contact damage
+- pipe scoring still relies on temporary pipe-specific helpers and will evolve toward obstacle-resolution-driven safe passage
 - obstacle generation is still simple and mostly pipe-specific
 - only one bird exists in the simulation
 - the current `GameState` is minimal
@@ -153,6 +155,8 @@ The next major architectural evolution should build on the current baseline rath
 
 - restart semantics should eventually split into collision, damage, elimination, and run-lifecycle concepts such as start, respawn, and reset
 - vertical world bounds should become simulation constraints that keep the bird visible, while any boundary hazard damage is modeled separately through gameplay facts
+- each pipe couple should own one explicit resolution state so collision damage and score eligibility are derived from obstacle state instead of repeated overlap checks
+- pipe scoring should resolve from safe passage beyond the obstacle on the x-axis, allowing the hidden score gate helper to be removed
 - obstacle generation should evolve toward a clearer separation between generation policy/state and entity spawning
 - bird simulation should remain shared across human, AI, and network-controlled birds
 - world scroll should remain the common source for obstacle movement and background motion
