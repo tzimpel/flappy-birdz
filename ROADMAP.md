@@ -95,15 +95,37 @@ This milestone turns the current prototype into a stronger single-player game wh
 
 This milestone creates the durable simulation model that AI and multiplayer both require later. Without it, AI would need to plug into ad hoc player-specific logic, and multiplayer would need to synchronize behavior that is not yet modeled explicitly enough.
 
+### Suggested Implementation Breakdown
+
+The milestone benefits from being split into reviewable changesets that each introduce one clear gameplay or lifecycle capability at a time.
+
+1. Add minimal run-state and lifecycle structure needed to support non-instant-death gameplay.
+   This covers introducing or tightening phase/state concepts such as `Ready`, `Playing`, and `GameOver` only to the extent required for later steps.
+2. Introduce bird health as explicit simulation data.
+   Add components/resources for `Health`, `MaxHealth`, and any immediate supporting configuration without changing collision behavior yet.
+3. Replace collision-driven instant game over with collision-driven damage.
+   Pipe hits should now produce damage through explicit gameplay messages/systems rather than directly ending the run.
+4. Add bird death and run end behavior once health can reach zero.
+   This is the point where elimination semantics become meaningful and the run ends because the bird died, not because a collision happened.
+5. Add passive healing and its gating rules.
+   Introduce regeneration over time up to max health, using explicit state and timing rather than presentation-driven behavior.
+6. Add explicit run progression and difficulty scaling.
+   Model progression as data/resources so challenge increases over time through dedicated systems.
+7. Apply progression to obstacle generation ranges.
+   Make pipe gap size and spacing/spawn cadence evolve within configured bounds once progression data exists.
+8. Stabilize scoring and UI against the updated gameplay model.
+   Ensure score, health presentation, and game-over feedback reflect damage, healing, survival, and progression correctly.
+
 ### Suggested Implementation Order
 
-1. Strengthen run-state semantics only as far as the next requested gameplay change requires.
-2. Add health and healing systems while preserving the current single-bird focus.
-3. Replace collision-to-game-over with collision-to-damage.
-4. Add death/elimination handling once health exists.
-5. Add run progression and difficulty scaling.
-6. Tackle obstacle generation policy explicitly when dynamic spacing/gaps require it.
-7. Stabilize scoring and UI around the new model.
+1. Minimal run-state and lifecycle structure
+2. Explicit bird health data
+3. Collision-to-damage conversion
+4. Death and run-end handling
+5. Passive healing
+6. Run progression and difficulty scaling
+7. Dynamic obstacle generation ranges
+8. Scoring and UI stabilization
 
 ### Exit Criteria
 
