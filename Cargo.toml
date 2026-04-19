@@ -2,48 +2,32 @@
 name = "flappy-birdz"
 version = "0.1.0"
 edition = "2024"
-
-[[bin]]
-name = "flappy-birdz"
-path = "src/main.rs"
+license = "MIT OR Apache-2.0"
 
 [dependencies]
-bevy = "0.18.0"
-# Set max log levels. This helps avoid unwanted low-severity log spam, which can affect performance.
-log = { version = "0.4", features = [
-    "max_level_debug",
-    "release_max_level_warn",
-] }
-tracing = { version = "0.1", features = [
-    "max_level_debug",
-    "release_max_level_warn",
-] }
+bevy = "0.18"
 
 # Idiomatic Bevy code often triggers these lints, and the CI workflow treats them as errors.
-# In some cases they may still signal poor code quality however, so consider commenting out these lines.
+# Keep or tighten them later once the project structure stabilizes.
 [lints.clippy]
-# Bevy supplies arguments to systems via dependency injection, so it's natural for systems to
-# request more than 7 arguments -- which triggers this lint.
+# Bevy systems often take many injected parameters.
 too_many_arguments = "allow"
-# Queries that access many components may trigger this lint.
+# Larger queries and system types commonly trigger this in Bevy code.
 type_complexity = "allow"
 
 # Enable a small amount of optimization in the dev profile.
 [profile.dev]
 opt-level = 1
 
-# Enable a large amount of optimization in the dev profile for dependencies.
+# Enable high optimizations for dependencies (including Bevy), but not for our code.
 [profile.dev.package."*"]
 opt-level = 3
 
-# Remove expensive debug assertions due to <https://github.com/bevyengine/bevy/issues/14291>
+# Remove expensive debug assertions due to https://github.com/bevyengine/bevy/issues/14291
 [profile.dev.package.wgpu-types]
 debug-assertions = false
 
 [profile.release]
-# Compile the entire crate as one unit.
-# Slows compile times, marginal improvements.
+# Better runtime performance at the cost of slower release builds.
 codegen-units = 1
-# Do a second optimization pass over the entire program, including dependencies.
-# Slows compile times, marginal improvements.
 lto = "thin"

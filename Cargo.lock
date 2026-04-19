@@ -2300,8 +2300,6 @@ name = "flappy-birdz"
 version = "0.1.0"
 dependencies = [
  "bevy",
- "log",
- "tracing",
 ]
 
 [[package]]
