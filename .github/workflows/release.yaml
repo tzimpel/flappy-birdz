@@ -5,6 +5,9 @@ on:
     tags:
       - '*'
 
+permissions:
+  contents: read
+
 env:
   # update with the name of the main binary
   binary: flappy-birdz
@@ -21,6 +24,8 @@ jobs:
   # Build for wasm
   release-wasm:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - uses: olegtarasov/get-tag@v2.1.2
@@ -70,6 +75,8 @@ jobs:
   # Build for Linux
   release-linux:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - uses: olegtarasov/get-tag@v2.1.2
@@ -119,6 +126,8 @@ jobs:
   # Build for Windows
   release-windows:
     runs-on: windows-latest
+    permissions:
+      contents: write
 
     steps:
       - uses: olegtarasov/get-tag@v2.1.2
@@ -165,6 +174,8 @@ jobs:
   # Build for MacOS x86_64
   release-macOS-intel:
     runs-on: macOS-latest
+    permissions:
+      contents: write
 
     steps:
       - uses: olegtarasov/get-tag@v2.1.2
@@ -211,6 +222,8 @@ jobs:
   # Build for MacOS Apple Silicon
   release-macOS-apple-silicon:
     runs-on: macOS-latest
+    permissions:
+      contents: write
 
     steps:
       - uses: olegtarasov/get-tag@v2.1.2
