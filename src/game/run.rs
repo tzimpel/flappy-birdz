@@ -66,7 +66,7 @@ pub fn reset_run_entities(
     difficulty.normalized = 0.0;
     obstacle_director.time_until_spawn = config.pipe_spawn_interval_easy.as_secs_f32();
     obstacle_director.last_gap_center_y = 0.0;
-    obstacle_director.step_pattern_index = 0;
+    obstacle_director.rng_state = 0xC0FFEE_u64;
     let fixed_overstep = fixed_time.overstep();
     fixed_time.discard_overstep(fixed_overstep);
     commands.entity(player.0).insert(Alive);

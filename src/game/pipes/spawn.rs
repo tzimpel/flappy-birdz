@@ -39,10 +39,11 @@ pub fn spawn_pipes(
 
     while obstacle_director.time_until_spawn <= 0.0 {
         let params = current_obstacle_params(&config, difficulty.normalized);
-        let (gap_center_y, next_pattern_index) = next_gap_center_y(
+        let (gap_center_y, next_rng_state) = next_gap_center_y(
             obstacle_director.last_gap_center_y,
-            obstacle_director.step_pattern_index,
+            obstacle_director.rng_state,
             &params,
+            &config,
         );
         let spawn_position = repeating_pipe_spawn_position(config.canvas_size.x);
         spawn_pipe(
@@ -54,7 +55,7 @@ pub fn spawn_pipes(
             params.gap_size,
         );
         obstacle_director.last_gap_center_y = gap_center_y;
-        obstacle_director.step_pattern_index = next_pattern_index;
+        obstacle_director.rng_state = next_rng_state;
         obstacle_director.time_until_spawn += params.spawn_interval.as_secs_f32();
     }
 }
