@@ -7,7 +7,7 @@ use bevy::{
 use super::{
     assets::GameAssets,
     config::GameConfig,
-    messages::{RunRestartRequested, ScorePoint},
+    messages::{RunEndRequested, ScorePoint},
     model::{
         Bird, BirdIntent, Collider, Gravity, PipeBottom, PipeTop, PlayerControlled, PointsGate,
         Position, Velocity,
@@ -70,17 +70,17 @@ pub fn integrate_velocity(mut movers: Query<(&mut Position, &Velocity)>, time: R
 
 pub fn check_in_bounds(
     player: Single<&Position, With<PlayerControlled>>,
-    mut restarts: MessageWriter<RunRestartRequested>,
+    mut run_end_requests: MessageWriter<RunEndRequested>,
     config: Res<GameConfig>,
 ) {
     if is_bird_out_of_bounds(player.0.y, config.canvas_size.y, config.player_size) {
-        restarts.write(RunRestartRequested);
+        run_end_requests.write(RunEndRequested);
     }
 }
 
 pub fn check_collisions(
     mut commands: Commands,
-    mut restarts: MessageWriter<RunRestartRequested>,
+    mut run_end_requests: MessageWriter<RunEndRequested>,
     mut score_points: MessageWriter<ScorePoint>,
     player: Single<(&Position, &Collider), With<PlayerControlled>>,
     pipe_segments: Query<(&Collider, Entity), Or<(With<PipeTop>, With<PipeBottom>)>>,
@@ -107,7 +107,7 @@ pub fn check_collisions(
         gizmos.rect_2d(pipe_transform.translation().xy(), pipe_size, RED_400);
 
         if player_collider.intersects(&pipe_collider) {
-            restarts.write(RunRestartRequested);
+            run_end_requests.write(RunEndRequested);
         }
     }
 

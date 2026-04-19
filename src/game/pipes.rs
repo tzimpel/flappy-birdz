@@ -16,13 +16,13 @@ impl FromWorld for PipeSpawnTimer {
     }
 }
 
-pub fn spawn_initial_pipe(
-    mut commands: Commands,
-    config: Res<GameConfig>,
-    assets: Res<GameAssets>,
+pub fn spawn_initial_pipe_for_run(
+    commands: &mut Commands,
+    config: &GameConfig,
+    assets: &GameAssets,
 ) {
     let spawn_position = initial_pipe_spawn_position(config.canvas_size.x, config.pipe_size.x);
-    spawn_pipe(&mut commands, &config, &assets, spawn_position, 0.0);
+    spawn_pipe(commands, config, assets, spawn_position, 0.0);
 }
 
 pub fn spawn_pipes(

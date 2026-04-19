@@ -17,8 +17,9 @@ use self::{
     assets::GameAssets,
     background::{BackgroundMaterial, WorldScroll},
     config::GameConfig,
-    messages::{RunRestartRequested, ScorePoint},
+    messages::{RunEndRequested, RunStarted, ScorePoint},
     pipes::PipeSpawnTimer,
+    run::RunDirector,
     score::Score,
     state::GameState,
 };
@@ -31,9 +32,11 @@ impl Plugin for FlappyBirdPlugin {
             .init_resource::<GameAssets>()
             .init_resource::<WorldScroll>()
             .init_resource::<PipeSpawnTimer>()
+            .init_resource::<RunDirector>()
             .init_resource::<Score>()
             .init_state::<GameState>()
-            .add_message::<RunRestartRequested>()
+            .add_message::<RunEndRequested>()
+            .add_message::<RunStarted>()
             .add_message::<ScorePoint>()
             .add_plugins(Material2dPlugin::<BackgroundMaterial>::default())
             .add_systems(
@@ -42,10 +45,18 @@ impl Plugin for FlappyBirdPlugin {
                     camera::spawn_camera,
                     background::configure_gizmos,
                     bird::spawn_player,
-                    pipes::spawn_initial_pipe,
                     ui::spawn_score_ui,
                     background::spawn_background,
                 ),
+            )
+            .add_systems(
+                OnEnter(GameState::Ready),
+                (
+                    run::reset_run_entities,
+                    model::sync_transforms_after_reset,
+                    run::start_first_run,
+                )
+                    .chain(),
             )
             .add_systems(
                 FixedUpdate,
@@ -60,8 +71,6 @@ impl Plugin for FlappyBirdPlugin {
                     bird::check_in_bounds,
                     bird::check_collisions,
                     score::increment_score_on_point,
-                    run::restart_run,
-                    model::sync_transforms_after_reset,
                 )
                     .chain()
                     .run_if(in_state(GameState::Playing)),
@@ -70,7 +79,6 @@ impl Plugin for FlappyBirdPlugin {
                 Update,
                 (
                     bird::capture_player_input,
-                    ui::score_update.run_if(resource_changed::<Score>),
                     background::update_parallax_offsets,
                     background::sync_parallax_materials,
                     bird::sync_bird_rotation,
@@ -80,7 +88,16 @@ impl Plugin for FlappyBirdPlugin {
             )
             .add_systems(
                 Update,
-                model::sync_transforms.run_if(in_state(GameState::Playing)),
+                (
+                    ui::score_update.run_if(resource_changed::<Score>),
+                    model::sync_transforms.run_if(in_state(GameState::Playing)),
+                    run::begin_playing_on_run_started,
+                    run::finish_run_on_request.run_if(in_state(GameState::Playing)),
+                ),
+            )
+            .add_systems(
+                OnEnter(GameState::GameOver),
+                run::queue_next_run_from_game_over,
             );
     }
 }
